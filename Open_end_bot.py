@@ -19,14 +19,25 @@ if not os.path.isfile(f'{PATH}/TOKEN_END.env'):
 	print("TOKEN_END.env not found! Creating new:")
 	print("Enter Bot-Token:")
 	TOKEN = str(input())
-	print(f"TOKEN={TOKEN}")
-	print("creating Key for Database:")
+	print(f"TOKEN={TOKEN}\nTwitter Data:\nEnter consumer key:")
+	TWITTER_CONSUMER_KEY = str(input())
+	print(f'TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nEnter consumer secret:')
+	TWITTER_CONSUMER_SECRET = str(input())
+	print(f'TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nEnter access token key:')
+	TWITTER_ACCESS_TOKEN_KEY = str(input())
+	print(f'TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nEnter access token secret:')
+	TWITTER_ACCESS_TOKEN_SECRET = str(input())
+	print(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\ncreating Key for Database:")
 	print(f"KEY={SEED}")
 	with open(f'{PATH}/TOKEN_END.env', 'w') as w:
-		w.write(f"# .env\nTOKEN={TOKEN}\nKEY={SEED}")
+		w.write(f"# .env\nTOKEN={TOKEN}\nTWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nTWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nTWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nTWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\nKEY={SEED}")
 else:
 	load_dotenv(f'{PATH}/TOKEN_END.env')
 	TOKEN = os.getenv('TOKEN')
+	TWITTER_CONSUMER_KEY = os.getenv('TWITTER_CONSUMER_KEY')
+	TWITTER_CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
+	TWITTER_ACCESS_TOKEN_KEY = os.getenv('TWITTER_ACCESS_TOKEN_KEY')
+	TWITTER_ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 	SEED = os.getenv('KEY')
 
 #security for Database:
@@ -154,7 +165,7 @@ async def on_ready():
 @bot.event
 async def on_command_error(ctx, error):
 	with open("err.log", "a") as a:
-		a.write(f"command error: {error}")
+		a.write(f"From {ctx.author.name}, command error: {error}\n")
 	print(error)
 	try:
 		prefix = getter("prefix", "guilds", "id", ctx.guild.id)
