@@ -65,17 +65,20 @@ cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nic
 cursor.execute('CREATE TABLE IF NOT EXISTS twitter (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT, _guild BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
-#check if key is right:
-cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
-if not cursor.fetchone():
-	#if key is not the same or does not exist, raise error:
-	raise CustomError("End_Bot.db corrupted! To fix this problem simply delete End_Bot.db")
-else:
-	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 775083453837606933,  )
-	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}",{g[2]})')
+# #check if key is right:
+# cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
+# if not cursor.fetchone():
+# 	#if key is not the same or does not exist, raise error:
+# 	raise CustomError("End_Bot.db corrupted! To fix this problem simply delete End_Bot.db")
+# else:
+# 	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 775083453837606933,  )
+# 	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}",{g[2]})')
 
 conn.commit()
 print("database set")
+
+################################################################################################
+################################################################################################
 
 #set Bot:
 
