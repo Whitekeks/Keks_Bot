@@ -66,7 +66,6 @@ cursor = conn.cursor(buffered=True)
 cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nick TEXT, _guild BIGINT, _regist BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS twitter ( _usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _feed_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
-# cursor.execute('CREATE TABLE IF NOT EXISTS twitter_ (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
 #check if key is right:
@@ -83,7 +82,7 @@ cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
 # if Bot does not Exist:
 if not cursor.fetchone():
 	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 722511309622607922,  )
-	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}",{g[2]})')
+	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}")')
 
 conn.commit()
 print("database set")
@@ -290,6 +289,8 @@ async def on_ready():
 	for thread in THREADS:
 		thread[0].start()
 
+	print("Twitter-Threads have started")
+
 
 
 @bot.event
@@ -307,11 +308,8 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_guild_join(guild):
 	#add guild to DB:
-	now = datetime.now()
-	timezone = pytz.timezone("Europe/Berlin")
-	now = timezone.localize(now)
-	t = (guild.id, guild.name, STDPREFIX, 0, now.strftime('%a %b %d %X %z %Y'), )
-	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},"{t[4]}")')	
+	t = (guild.id, guild.name, STDPREFIX, )
+	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}")')	
 	
 	#add all members of guild to DB:
 	for member in guild.members:
@@ -320,10 +318,25 @@ async def on_guild_join(guild):
 
 @bot.event
 async def on_guild_remove(guild):
+	global THREADS
+
 	#delete guild:
 	cursor.execute(f'DELETE FROM guilds WHERE _id={guild.id}')
 	#delete members on guild:
 	cursor.execute(f'DELETE FROM members WHERE _guild={guild.id}')
+
+	#delete twitter feeds and tables:
+	cursor.execute(f'SELECT * FROM twitter WHERE _guild_id={guild.id};')
+	Feeds = cursor.fetchall()
+	for feed in Feeds:
+		for i,thread in enumerate(THREADS):
+			if thread[1]==feed[4]:
+				thread[0].stop()
+				del THREADS[i]
+				break
+		
+		cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]};')
+		cursor.execute(f'DROP TABLE twitter_{feed[4]};')
 	conn.commit()
 
 @bot.event
@@ -331,6 +344,24 @@ async def on_guild_update(before, after):
 	t = (after.name, )
 	cursor.execute(f'UPDATE guilds SET _name="{s(t[0])}" WHERE _id={after.id}')
 	cursor.commit()
+
+@bot.event
+async def on_guild_channel_delete(channel):
+	global THREADS
+
+	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel.id} AND _guild_id={channel.guild.id};')
+	Feeds = cursor.fetchall()
+	for feed in Feeds:
+		for i,thread in enumerate(THREADS):
+			if thread[1]==feed[4]:
+				thread[0].stop()
+				del THREADS[i]
+				break
+		
+		cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]};')
+		cursor.execute(f'DROP TABLE twitter_{feed[4]};')
+	conn.commit()
+
 
 @bot.event
 async def on_member_join(member):
@@ -490,10 +521,9 @@ async def delete_twitter(ctx, twitter_tag : str, channel : str):
 			del THREADS[i]
 			break
 	
-	cursor.execute(f'DELETE FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
+	cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]};')
 	cursor.execute(f'DROP TABLE twitter_{feed[4]};')
 	conn.commit()
-
 
 @bot.command(name='set_prefix', help=f'choose a new prefix for this Server (Private allways "{STDPREFIX}")')
 @commands.has_guild_permissions(administrator=True)
@@ -508,7 +538,7 @@ async def set_prefix(ctx, prefix : str):
 		raise commands.UserInputError("Prefix not allowed!")
 
 @bot.command(name='register_guild', help='registers Guild. WARNING: delets Meta-Data if Guild allready exists', hidden=True)
-@commands.is_owner()
+@is_guild_owner()
 async def register_guild(ctx):
 	guild = ctx.guild
 	await on_guild_remove(guild)
