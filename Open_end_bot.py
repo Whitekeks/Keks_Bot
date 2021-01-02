@@ -65,7 +65,7 @@ cursor = conn.cursor(buffered=True)
 #create tables if they do not exist:
 cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nick TEXT, _guild BIGINT, _regist BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
-cursor.execute('CREATE TABLE IF NOT EXISTS twitter ( _usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _thread_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS twitter ( _usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _feed_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 # cursor.execute('CREATE TABLE IF NOT EXISTS twitter_ (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
@@ -140,6 +140,8 @@ GUEST_ROLE = "Gast" # todo
 BOT_CREATION_TIME = datetime.strptime(getter("_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y') #type = datetime
 # GUILD_ID = 722511309622607922 #for twitter-thread, here fix for faster usage -> applied in on_ready
 STDPREFIX = "/"
+THREADS = []
+alive = True
 
 print("globals set")
 
@@ -174,14 +176,15 @@ class checkTwitter:
 	def __init__(self, **kwargs):
 
 		self.CREATION_TIME = kwargs['CREATION_TIME']
-		self.CREATION_TIME = datetime.strptime(self.CREATION_TIME, '%a %b %d %X %z %Y')
-		self.stop = False
 		self.usertag = kwargs['usertag']
-		self.table = kwargs['table']
+		self.feed_id = kwargs['feed_id']
 		self.guild_id = kwargs['guild_id']
 		self.channel_id = kwargs['channel_id']
 
+		self.CREATION_TIME = datetime.strptime(self.CREATION_TIME, '%a %b %d %X %z %Y')
+		self.Stop = False
 		self.Thread = Thread(target=self.checkTwitter)
+		self.table = f'twitter_{self.feed_id}'
 
 	def checkTwitter(self):
 		Tconn = mysql.connector.connect(
@@ -192,7 +195,7 @@ class checkTwitter:
 		)
 		c = Tconn.cursor(buffered=True)
 
-		while alive and not self.stop:
+		while alive and not self.Stop:
 			statuses = twitter_api.GetUserTimeline(screen_name=self.usertag, count=100)
 			for rank, status in enumerate(statuses):
 				#check if status.id exists:
@@ -227,11 +230,11 @@ class checkTwitter:
 			sleep(30)
 		Tconn.close()
 
-	def Start(self):
+	def start(self):
 		self.Thread.start()
 	
-	def Stop(self):
-		self.stop = True
+	def stop(self):
+		self.Stop = True
 		self.Thread.join()
 
 async def send_private(user, message):
@@ -244,15 +247,15 @@ async def send_private(user, message):
 
 @bot.event
 async def on_ready():
-	global GUILD_ID
-
 	print("")
 	print("Update DataBase...")
+	
 	#check for new members and missing guilds:
 	cursor.execute('SELECT _id FROM guilds')
 	guilds = cursor.fetchall()
 	for ID in guilds:
 		guild = discord.utils.get(bot.guilds, id=ID[0])
+		# Update Members if Guild not exists
 		if guild:
 			for member in guild.members:
 				cursor.execute(f'SELECT _id FROM members WHERE _id={member.id} AND _guild={guild.id}')
@@ -260,6 +263,7 @@ async def on_ready():
 					await on_member_update(member, member)
 				else:
 					await on_member_join(member)
+
 			cursor.execute(f'SELECT _id FROM members WHERE _guild={guild.id}')
 			Members = cursor.fetchall()
 			for member_id in Members:
@@ -268,26 +272,24 @@ async def on_ready():
 					cursor.execute(f'DELETE FROM members WHERE _id={member_id[0]} AND _guild={guild.id}')
 		else:
 			cursor.execute(f'DELETE FROM guilds WHERE _id={ID[0]}')
+	
 	#check if Guild is registered:
 	for Guild in bot.guilds:
 		cursor.execute(f'SELECT _id FROM guilds WHERE _id={Guild.id}')
 		if not cursor.fetchone():
 			await on_guild_join(Guild)
-	
-	GUILD_ID = getter("_guild", "bot", "_key", KEY)
 
 	conn.commit()
 
 	print(f'{bot.user.name} has connected to Discord!')
 	
-	thread.start()
+	Preference_Thread.start()
 	print('Preference has started')
-	try:
-		if getter("_news", "guilds", "_id", GUILD_ID):
-			twitter_thread.start()
-			print('checkTwitter has started')
-	except:
-		None
+
+	# start Twitter-Threads
+	for thread in THREADS:
+		thread[0].start()
+
 
 
 @bot.event
@@ -408,7 +410,7 @@ async def on_reaction_add(reaction, user):
 				await member.add_roles(role)
 				await reaction.message.delete()			
 				cursor.execute(f'UPDATE members SET _regist=1 WHERE _id={user.id} AND _guild={guild.id}')
-				await user.send("Willkommen auf dem Open End Discord, um dich bei Charlemagne zu registriere, schreibe in einen beliebigen Open-End-Channel !register")
+				await user.send("Willkommen auf dem Open End Discord, um dich bei Charlemagne zu registrieren, schreibe in einen beliebigen Open-End-Channel !register")
 			except:
 				raise commands.UserInputError("Registration failed, please contact an admin or the dev (Whitekeks)")
 		elif reaction.emoji==REGISTER_EMOJI_DENY:
@@ -433,34 +435,64 @@ def is_guild_owner():
 
 """------------------------------ Commands --------------------------"""
 
-@bot.command(name='set_news', help='set channel for twitter_news')
+@bot.command(name='set_twitter', help='set channel for twitter_news')
 @commands.has_guild_permissions(administrator=True)
-async def set_news(ctx, channel : str):
-	global GUILD_ID
-	guild = ctx.guild
+async def set_twitter(ctx, twitter_tag : str, channel : str):
+	global THREADS
+
+	guild_id = ctx.guild.id
 	Channel = discord.utils.get(guild.channels, name=channel)
-	if Channel:
-		t = (Channel.id, )
-		cursor.execute(f'UPDATE guilds SET _news={t[0]} WHERE _id={guild.id}')
-		conn.commit()
-	else:
-		raise commands.UserInputError("No such channel, try again")
-	await ctx.send("Channel successfully set")
-	#for general purpose it would be wise to call a class here to start a individual news-thread for every Server 
-	#or to add the Guild on the twitter List in the news-thread. Not implemented for faster usage (GUILD = Open End)
+	channel_id = Channel.id
+	usertag = s(twitter_tag)
+
+	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
+	if cursor.fetchone():
+		raise commands.UserInputError("Twitter-Feed allready set")
 
 	now = datetime.now()
 	timezone = pytz.timezone("Europe/Berlin")
 	now = timezone.localize(now)
-	t = (now.strftime('%a %b %d %X %z %Y'), )
-	cursor.execute(f'UPDATE guilds SET _creation_time="{t[0]}" WHERE _id={guild.id}')
-	# cursor.execute(f'UPDATE bot SET guild={guild.id} WHERE key={KEY}')
+	creation_time = now.strftime('%a %b %d %X %z %Y')
+
+	cursor.execute('SELECT _feed_id FROM twitter ORDER BY _rank;')
+	for i,j in enumerate(cursor.fetchall()):
+		if i!=j[0]:
+			feed_id = i
+			break
+		else:
+			feed_id = i+1
+
+	cursor.execute(f'INSERT INTO twitter VALUES ("{usertag}", {channel_id}, "{creation_time}", {guild_id}, {feed_id});')
+	cursor.execute(f'CREATE TABLE IF NOT EXISTS twitter_{feed_id} (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 	conn.commit()
-	try:
-		GUILD_ID = guild.id
-		twitter_thread.start()
-		print('checkTwitter has started')
-	except: None
+
+	THREADS.append( (checkTwitter(usertag=usertag, channel_id=channel_id, CREATION_TIME=creation_time, guild_id=guild_id, feed_id=feed_id), feed_id) )
+	THREADS[len(THREADS-1)][0].start()
+
+@bot.command(name='delete_twitter', help='deletes set news-feed')
+@commands.has_guild_permissions(administrator=True)
+async def delete_twitter(ctx, twitter_tag : str, channel : str):
+	global THREADS
+
+	guild_id = ctx.guild.id
+	Channel = discord.utils.get(guild.channels, name=channel)
+	channel_id = Channel.id
+	usertag = s(twitter_tag)
+
+	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
+	feed = cursor.fetchone()
+	if not feed:
+		raise commands.UserInputError("News-Feed does not exist")
+	
+	for i,thread in enumerate(THREADS):
+		if thread[1]==feed[4]:
+			thread[0].stop()
+			del THREADS[i]
+			break
+	
+	cursor.execute(f'DELETE FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
+	cursor.execute(f'DROP TABLE twitter_{feed[4]};')
+	conn.commit()
 
 
 @bot.command(name='set_prefix', help=f'choose a new prefix for this Server (Private allways "{STDPREFIX}")')
@@ -521,19 +553,25 @@ async def restart(ctx):
 
 def SHUTDOWN():
 	global alive
+
 	print("starting shutdown")
 	botloop.create_task(bot.logout())
+
+	# close running loops
 	while True:
 		try: 
 			loop = asyncio.get_running_loop()
 			loop.close()
 		except:
 			break
+
 	try:
-		alive = False 
-		thread.join()
-		twitter_thread.join()
+		alive = False
+		Preference_Thread.join()
+		for thread in THREADS:
+			thread[0].stop()
 	except: None
+
 	conn.close()
 
 def RESTART():
@@ -551,9 +589,14 @@ def RESTART():
 	python = sys.executable
 	os.execl(python, python, *sys.argv)
 
-alive = True
-thread = Thread(target=Preference)
-twitter_thread = Thread(target=checkTwitter)
+
+Preference_Thread = Thread(target=Preference)
+
+# create Twitter-Threads
+cursor.execute('SELECT * FROM twitter')
+Feeds = cursor.fetchall()
+for feed in Feeds:
+	THREADS.append( (checkTwitter(usertag=feed[0], channel_id=feed[1], CREATION_TIME=feed[2], guild_id=feed[3], feed_id = feed[4]), feed[4]) )
 
 botloop.run_until_complete(bot.start(TOKEN))
 

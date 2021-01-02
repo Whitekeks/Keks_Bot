@@ -34,31 +34,37 @@ mycursor = myconn.cursor()
 # for i in List:
 # 	print(i)
 
-print("members:")
-mycursor.execute('SELECT _id FROM members WHERE _regist<>0')
-List = mycursor.fetchall()
-for i in List:
-	print(i)
+# print("members:")
+# mycursor.execute('SELECT _id FROM members WHERE _regist<>0')
+# List = mycursor.fetchall()
+# for i in List:
+# 	print(i)
 
-print("guilds:")
-mycursor.execute('SELECT * FROM guilds')
-List = mycursor.fetchall()
-for i in List:
-	print(i)
+# print("guilds:")
+# mycursor.execute('SELECT * FROM guilds')
+# List = mycursor.fetchall()
+# for i in List:
+# 	print(i)
 
-print("bot:")
-mycursor.execute('SELECT * FROM bot')
-List = mycursor.fetchall()
-for i in List:
-	print(i)
+# print("bot:")
+# mycursor.execute('SELECT * FROM bot')
+# List = mycursor.fetchall()
+# for i in List:
+# 	print(i)
 
-print("twitter:")
-mycursor.execute('SELECT * FROM twitter')
-List = mycursor.fetchall()
-for i in List:
-	print(i)
+# print("twitter:")
+# mycursor.execute('SELECT * FROM twitter')
+# List = mycursor.fetchall()
+# for i in List:
+# 	print(i)
 
 # conn.commit()
 
 # conn.close()
+feed_id = 1
+mycursor.execute(f'CREATE TABLE IF NOT EXISTS twitter_{feed_id} (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+mycursor.execute(f'SELECT * FROM twitter_{feed_id}')
+for i,j in enumerate(mycursor.fetchall()):
+	print(i,j)
+
 myconn.close()
