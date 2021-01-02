@@ -10,7 +10,8 @@ SEED = str(np.random.randint(0,int(2.e9)))
 
 print("starting...")
 
-#Set env's:
+"""--------------environment variables------------------"""
+
 PATH = os.path.dirname(os.path.abspath(__file__))
 if not os.path.isfile(f'{PATH}/TOKEN_END.env'):
 	print("TOKEN_END.env not found! Creating new:")
@@ -39,6 +40,8 @@ else:
 
 print("env's set")
 
+"""-------------------------Database---------------------------"""
+
 #security for Database:
 np.random.seed(int(SEED))
 KEY = np.random.rand()
@@ -65,22 +68,26 @@ cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nic
 cursor.execute('CREATE TABLE IF NOT EXISTS twitter (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT, _guild BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
-# #check if key is right:
-# cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
+#check if key is right:
+cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
+
+# # Old Setup, now Secured over MySQL
 # if not cursor.fetchone():
 # 	#if key is not the same or does not exist, raise error:
 # 	raise CustomError("End_Bot.db corrupted! To fix this problem simply delete End_Bot.db")
 # else:
-# 	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 775083453837606933,  )
+# 	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 722511309622607922,  )
 # 	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}",{g[2]})')
+
+# if Bot does not Exist:
+if not cursor.fetchone():
+	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 722511309622607922,  )
+	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}",{g[2]})')
 
 conn.commit()
 print("database set")
 
-################################################################################################
-################################################################################################
-
-#set Bot:
+"""------------------important functions---------------------"""
 
 def s(dirtyString):
 	cleanString = None
@@ -101,14 +108,17 @@ def Prefix(Bot, Message):
 		pfx = STDPREFIX
 	return pfx
 
+"""---------------------Bot-----------------------------"""
+
 bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
-Games = ["v. 1.0","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
-		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
+# Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
+# 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
+Games = ["v. 1.2.2","/help for infos","@OpenEndGaming","openendgaming.org"]
 
 print("bot set")
 
-#set twitter:
+"""---------------------Twitter-------------------------"""
 
 twitter_api = twitter.Api(consumer_key=TWITTER_CONSUMER_KEY,
 				consumer_secret=TWITTER_CONSUMER_SECRET,
@@ -118,7 +128,7 @@ twitter_api = twitter.Api(consumer_key=TWITTER_CONSUMER_KEY,
 print("twitter set")
 
 
-#set Globals:
+"""----------------------Globals------------------------"""
 
 with open(f'{PATH}/register_message.txt', 'r') as w:
 	REGISTER_MESSAGE = w.read()
@@ -127,7 +137,7 @@ REGISTER_EMOJI_ACCEPT = "👍"
 REGISTER_EMOJI_DENY = "👎"
 GUEST_ROLE = "Gast"
 CREATION_TIME = datetime.strptime(getter("_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y') #type = datetime
-GUILD_ID = 775083453837606933 #for twitter-thread, here fix for faster usage -> applied in on_ready
+GUILD_ID = 722511309622607922 #for twitter-thread, here fix for faster usage -> applied in on_ready
 STDPREFIX = "/"
 
 print("globals set")
@@ -239,11 +249,11 @@ async def on_ready():
 			cursor.execute(f'SELECT _id FROM members WHERE _guild={guild.id}')
 			Members = cursor.fetchall()
 			for member_id in Members:
-				Member = discord.utils.get(guild.members, id=member_id)
+				Member = discord.utils.get(guild.members, id=member_id[0])
 				if not Member:
-					await on_member_remove(member)
+					cursor.execute(f'DELETE FROM members WHERE _id={member_id[0]} AND _guild={guild.id}')
 		else:
-			await on_guild_remove(guild)
+			cursor.execute(f'DELETE FROM guilds WHERE _id={ID[0]}')
 	#check if Guild is registered:
 	for Guild in bot.guilds:
 		cursor.execute(f'SELECT _id FROM guilds WHERE _id={Guild.id}')
@@ -344,6 +354,7 @@ async def on_member_update(before, after):
 	#update member:
 	t = (after.nick, after.name )
 	cursor.execute(f'UPDATE members SET _nick="{s(t[0])}", _name="{s(t[1])}" WHERE _id={after.id} AND _guild={guild.id}')
+	conn.commit()
 
 	if len(after.roles)>1:
 		Guest = discord.utils.get(after.roles, name=GUEST_ROLE)
@@ -351,7 +362,13 @@ async def on_member_update(before, after):
 		# if member has and had role GUEST
 		if Guest:
 			cursor.execute(f'SELECT _regist FROM members WHERE _id={after.id} AND _guild={guild.id}')
-			regist = cursor.fetchone()[0]
+			try: 
+				regist = cursor.fetchone()[0]
+			except:
+				print("can't find", after.id, after.name, after.nick, guild.id, 1)
+				await on_member_join(after)
+				print(after.name, "successfully registered")
+				return
 			# if registered:
 			if regist>>0 & 0x01 and len(after.roles)>2:
 				await after.remove_roles(Guest)
