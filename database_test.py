@@ -7,8 +7,8 @@ import os
 # conn = sqlite3.connect(database=f"{PATH}/funniest/End_Bot.db")
 # cursor = conn.cursor()
 myconn = connector.connect(
-	host="localhost",
-	user="root",
+	host='localhost',
+	user="Whitekeks",
 	password="Ludado80",
 	database='Open_End'
 )

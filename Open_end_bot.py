@@ -63,10 +63,11 @@ conn = mysql.connector.connect(
 cursor = conn.cursor(buffered=True)
 
 #create tables if they do not exist:
-cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT, _news BIGINT, _creation_time TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nick TEXT, _guild BIGINT, _regist BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
-cursor.execute('CREATE TABLE IF NOT EXISTS twitter (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
-cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT, _guild BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS twitter ( _usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _thread_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+# cursor.execute('CREATE TABLE IF NOT EXISTS twitter_ (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
 #check if key is right:
 cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
@@ -114,7 +115,7 @@ bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
 # Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
 # 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
-Games = ["v. 1.2.2","/help for infos","@OpenEndGaming","openendgaming.org"]
+Games = ["v. 1.3.1","/help for infos","@OpenEndGaming","openendgaming.org"]
 
 print("bot set")
 
@@ -135,9 +136,9 @@ with open(f'{PATH}/register_message.txt', 'r') as w:
 
 REGISTER_EMOJI_ACCEPT = "👍"
 REGISTER_EMOJI_DENY = "👎"
-GUEST_ROLE = "Gast"
-CREATION_TIME = datetime.strptime(getter("_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y') #type = datetime
-GUILD_ID = 722511309622607922 #for twitter-thread, here fix for faster usage -> applied in on_ready
+GUEST_ROLE = "Gast" # todo
+BOT_CREATION_TIME = datetime.strptime(getter("_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y') #type = datetime
+# GUILD_ID = 722511309622607922 #for twitter-thread, here fix for faster usage -> applied in on_ready
 STDPREFIX = "/"
 
 print("globals set")
@@ -168,57 +169,70 @@ def Preference():
 		if i == len(Games)-1: i = 0
 		else: i += 1
 
-def checkTwitter():
-	Tconn = mysql.connector.connect(
-		host="localhost",
-		user="Whitekeks",
-		password="Ludado80",
-		database='Open_End'
-	)
-	c = Tconn.cursor(buffered=True)
+class checkTwitter:
+
+	def __init__(self, **kwargs):
+
+		self.CREATION_TIME = kwargs['CREATION_TIME']
+		self.CREATION_TIME = datetime.strptime(self.CREATION_TIME, '%a %b %d %X %z %Y')
+		self.stop = False
+		self.usertag = kwargs['usertag']
+		self.table = kwargs['table']
+		self.guild_id = kwargs['guild_id']
+		self.channel_id = kwargs['channel_id']
+
+		self.Thread = Thread(target=self.checkTwitter)
+
+	def checkTwitter(self):
+		Tconn = mysql.connector.connect(
+			host="localhost",
+			user="Whitekeks",
+			password="Ludado80",
+			database='Open_End'
+		)
+		c = Tconn.cursor(buffered=True)
+
+		while alive and not self.stop:
+			statuses = twitter_api.GetUserTimeline(screen_name=self.usertag, count=100)
+			for rank, status in enumerate(statuses):
+				#check if status.id exists:
+				c.execute(f'SELECT _id FROM {self.table} WHERE _id={status.id}')
+				ID = c.fetchone()
+				if not ID:
+					retweet = status.retweeted_status != None
+					t = (rank, status.id, status.created_at, 0, retweet, )
+					c.execute(f'INSERT INTO {self.table} VALUES ({t[0]},{t[1]},"{t[2]}",{t[3]},{t[4]})')
+				else:
+					c.execute(f'UPDATE {self.table} SET _rank={rank} WHERE _id={status.id}')
+				
+				Tconn.commit()
+			
+			c.execute(f'DELETE FROM {self.table} WHERE _rank=99')
+			
+			#send new tweets:
+			c.execute(f'SELECT _id, _created_at, _retweet FROM {self.table} WHERE _send=0 ORDER BY _rank DESC')
+			notsended = c.fetchall()
+			for i in notsended:
+				if datetime.strptime(i[1], '%a %b %d %X %z %Y') > self.CREATION_TIME:
+					url = twitter_api.GetStatusOembed(status_id=i[0])['url']
+					guild = discord.utils.get(bot.guilds, id=self.guild_id)
+					channel = discord.utils.get(guild.channels, id=self.channel_id)
+					if i[2]: 
+						url = f'Open End hat auf Twitter folgendes Retweetet:\n{url}'
+					asyncio.run_coroutine_threadsafe(channel.send(url), botloop)
+					c.execute(f'UPDATE twitter SET _send=1 WHERE _id={i[0]}')
+				
+				Tconn.commit()
+
+			sleep(30)
+		Tconn.close()
+
+	def Start(self):
+		self.Thread.start()
 	
-	def getCreationTime():
-		try:
-			c.execute(f'SELECT _creation_time FROM guilds WHERE _id={GUILD_ID}')
-			return datetime.strptime(c.fetchone()[0], '%a %b %d %X %z %Y') #rewrite for more general use of bot
-		except:
-			return CREATION_TIME
-
-	while alive:
-		statuses = twitter_api.GetUserTimeline(screen_name='@OpenEndGaming', count=100)
-		for rank, status in enumerate(statuses):
-			#check if status.id exists:
-			c.execute(f'SELECT _id FROM twitter WHERE _id={status.id}')
-			ID = c.fetchone()
-			if not ID:
-				retweet = status.retweeted_status != None
-				t = (rank, status.id, status.created_at, 0, retweet, )
-				c.execute(f'INSERT INTO twitter VALUES ({t[0]},{t[1]},"{t[2]}",{t[3]},{t[4]})')
-			else:
-				c.execute(f'UPDATE twitter SET _rank={rank} WHERE _id={status.id}')
-			
-			Tconn.commit()
-		
-		c.execute('DELETE FROM twitter WHERE _rank=99')
-		
-		#send new tweets:
-		c.execute(f'SELECT _id, _created_at, _retweet FROM twitter WHERE _send=0 ORDER BY _rank DESC')
-		notsended = c.fetchall()
-		for i in notsended:
-			if datetime.strptime(i[1], '%a %b %d %X %z %Y') > getCreationTime():
-				url = twitter_api.GetStatusOembed(status_id=i[0])['url']
-				guild = discord.utils.get(bot.guilds, id=GUILD_ID)
-				c.execute(f'SELECT _news FROM guilds WHERE _id={guild.id}')
-				channel = discord.utils.get(guild.channels, id=c.fetchone()[0])
-				if i[2]: 
-					url = f'Open End hat auf Twitter folgendes Retweetet:\n{url}'
-				asyncio.run_coroutine_threadsafe(channel.send(url), botloop)
-				c.execute(f'UPDATE twitter SET _send=1 WHERE _id={i[0]}')
-			
-			Tconn.commit()
-
-		sleep(30)
-	Tconn.close()
+	def Stop(self):
+		self.stop = True
+		self.Thread.join()
 
 async def send_private(user, message):
 	DM = await user.create_dm()
@@ -522,9 +536,6 @@ def SHUTDOWN():
 	except: None
 	conn.close()
 
-def START():
-	botloop.run_until_complete(bot.start(TOKEN))
-
 def RESTART():
 	print("Bot is restarting...")
 	SHUTDOWN()
@@ -544,6 +555,6 @@ alive = True
 thread = Thread(target=Preference)
 twitter_thread = Thread(target=checkTwitter)
 
-START()
+botloop.run_until_complete(bot.start(TOKEN))
 
 print("Bot has logged out")
