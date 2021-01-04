@@ -13,8 +13,8 @@ print("starting...")
 """--------------environment variables------------------"""
 
 PATH = os.path.dirname(os.path.abspath(__file__))
-if not os.path.isfile(f'{PATH}/TOKEN_END.env'):
-	print("TOKEN_END.env not found! Creating new:")
+if not os.path.isfile(f'{PATH}/TOKEN_BOT.env'):
+	print("TOKEN_BOT.env not found! Creating new:")
 	print("Enter Bot-Token:")
 	TOKEN = str(input())
 	print(f"TOKEN={TOKEN}\nTwitter Data:\nEnter consumer key:")
@@ -27,10 +27,10 @@ if not os.path.isfile(f'{PATH}/TOKEN_END.env'):
 	TWITTER_ACCESS_TOKEN_SECRET = str(input())
 	print(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\ncreating Key for Database:")
 	print(f"KEY={SEED}")
-	with open(f'{PATH}/TOKEN_END.env', 'w') as w:
+	with open(f'{PATH}/TOKEN_BOT.env', 'w') as w:
 		w.write(f"# .env\nTOKEN={TOKEN}\nTWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nTWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nTWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nTWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\nKEY={SEED}")
 else:
-	load_dotenv(f'{PATH}/TOKEN_END.env')
+	load_dotenv(f'{PATH}/TOKEN_BOT.env')
 	TOKEN = os.getenv('TOKEN')
 	TWITTER_CONSUMER_KEY = os.getenv('TWITTER_CONSUMER_KEY')
 	TWITTER_CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
@@ -63,9 +63,11 @@ conn = mysql.connector.connect(
 cursor = conn.cursor(buffered=True)
 
 #create tables if they do not exist:
-cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT, _stdrole BIGINT, _message TEXT, _autodelete BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nick TEXT, _guild BIGINT, _regist BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
-cursor.execute('CREATE TABLE IF NOT EXISTS twitter ( _usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _feed_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS twitter (_usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _feed_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS bonds (_role_id BIGINT, _emoji TEXT, _guild_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS sr_messages (_message_id BIGINT, _guild_id BIGINT, _jump_url TEXT, _user_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
 #check if key is right:
@@ -92,7 +94,7 @@ print("database set")
 def s(dirtyString):
 	cleanString = None
 	if dirtyString:
-		cleanString = dirtyString.translate({ord(i): None for i in ["'", '"', ";", ",", "(", ")", "{", "}", "[", "]"]})
+		cleanString = dirtyString.translate({ord(i): None for i in [";"]})
 	return cleanString
 
 def getter(item, table, column, value):
@@ -114,7 +116,7 @@ bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
 # Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
 # 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
-Games = ["v. 1.3.1","/help for infos","@OpenEndGaming","openendgaming.org"]
+Games = ["v. 1.3.1","/help for infos"]
 
 print("bot set")
 
@@ -147,9 +149,9 @@ print("globals set")
 """---------------------functions----------------------"""
 
 # custom sleep function which breaks when alive = False
-def sleep(Interval):
+def sleep(Interval, Condition=True):
 	time_1 = time.time()
-	while time.time()-time_1<Interval and alive:
+	while time.time()-time_1<Interval and alive and Condition:
 		None
 
 # changes the bots activity, just for misscalanios purpose
@@ -220,13 +222,13 @@ class checkTwitter:
 					guild = discord.utils.get(bot.guilds, id=self.guild_id)
 					channel = discord.utils.get(guild.channels, id=self.channel_id)
 					if i[2]: 
-						url = f'Open End hat auf Twitter folgendes Retweetet:\n{url}'
+						url = f'{self.usertag} hat auf Twitter folgendes Retweetet:\n{url}'
 					asyncio.run_coroutine_threadsafe(channel.send(url), botloop)
-					c.execute(f'UPDATE twitter SET _send=1 WHERE _id={i[0]}')
+					c.execute(f'UPDATE {self.table} SET _send=1 WHERE _id={i[0]}')
 				
 				Tconn.commit()
 
-			sleep(30)
+			sleep(30, not self.Stop)
 		Tconn.close()
 
 	def start(self):
@@ -292,7 +294,6 @@ async def on_ready():
 	print("Twitter-Threads have started")
 
 
-
 @bot.event
 async def on_command_error(ctx, error):
 	with open("err.log", "a") as a:
@@ -308,8 +309,8 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_guild_join(guild):
 	#add guild to DB:
-	t = (guild.id, guild.name, STDPREFIX, )
-	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}")')	
+	t = (guild.id, guild.name, STDPREFIX, 0, '0', False, )
+	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},"{t[4]}",{t[5]});')	
 	
 	#add all members of guild to DB:
 	for member in guild.members:
@@ -343,7 +344,7 @@ async def on_guild_remove(guild):
 async def on_guild_update(before, after):
 	t = (after.name, )
 	cursor.execute(f'UPDATE guilds SET _name="{s(t[0])}" WHERE _id={after.id}')
-	cursor.commit()
+	conn.commit()
 
 @bot.event
 async def on_guild_channel_delete(channel):
@@ -362,12 +363,12 @@ async def on_guild_channel_delete(channel):
 		cursor.execute(f'DROP TABLE twitter_{feed[4]};')
 	conn.commit()
 
-
 @bot.event
 async def on_member_join(member):
 	guild = member.guild
 	if not member.bot:
-		if len(member.roles) == 1:
+		stdrole = getter("_stdrole", "guilds", "_id", guild.id)
+		if len(member.roles) == 1 and stdrole:
 			regist = 2
 		else:
 			regist = 1
@@ -375,9 +376,9 @@ async def on_member_join(member):
 		t = (member.id, member.name, member.nick, guild.id, regist, )
 		cursor.execute(f'INSERT INTO members VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]})')
 		conn.commit()
-
-		if regist >= 2:
-			Message = await send_private(member, REGISTER_MESSAGE)
+		
+		if regist >= 2 and stdrole:
+			Message = await send_private(member, getter("_message", "guilds", "_id", guild.id))
 			await Message.add_reaction(REGISTER_EMOJI_ACCEPT)
 			await Message.add_reaction(REGISTER_EMOJI_DENY)
 			return False
@@ -404,20 +405,15 @@ async def on_member_update(before, after):
 	conn.commit()
 
 	if len(after.roles)>1:
-		Guest = discord.utils.get(after.roles, name=GUEST_ROLE)
+		Guest = discord.utils.get(after.roles, id=getter("_stdrole", "guilds", "_id", guild.id))
 		
-		# if member has and had role GUEST
 		if Guest:
 			cursor.execute(f'SELECT _regist FROM members WHERE _id={after.id} AND _guild={guild.id}')
-			try: 
-				regist = cursor.fetchone()[0]
-			except:
-				print("can't find", after.id, after.name, after.nick, guild.id, 1)
-				await on_member_join(after)
-				print(after.name, "successfully registered")
-				return
-			# if registered:
-			if regist>>0 & 0x01 and len(after.roles)>2:
+			regist = cursor.fetchone()[0]
+			cursor.execute(f'SELECT _autodelete FROM guilds WHERE _id={guild.id}')
+			autodelete = cursor.fetchone()[0]
+			# if registered (because member has more than one Role):
+			if regist>>0 & 0x01 and len(after.roles)>2 and autodelete:
 				await after.remove_roles(Guest)
 			elif regist>>1 & 0x01:
 				regist |= 0x01 # 3 is possible
@@ -428,28 +424,73 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_reaction_add(reaction, user):
-	if reaction.message.content==REGISTER_MESSAGE and not user.bot:
+	if user.bot:
+		return
 
+	if reaction.message.channel.type == discord.ChannelType.private:
+		
 		cursor.execute(f'SELECT _guild FROM members WHERE _id={user.id} AND _regist>=2')
-		ID = cursor.fetchone()[0]
-		guild = discord.utils.get(bot.guilds, id=ID)
-		member = discord.utils.get(guild.members, id=user.id)
+		GUILDS = cursor.fetchall()
+		for ID in GUILDS:
+			
+			cursor.execute(f'SELECT _message, _stdrole FROM guilds WHERE _id={ID[0]}')
+			regis_message, stdrole = cursor.fetchone()
+			if stdrole and s(reaction.message.content)==regis_message:
 
-		if reaction.emoji==REGISTER_EMOJI_ACCEPT:
-			try:
-				role = discord.utils.get(guild.roles, name=GUEST_ROLE)
+				guild = discord.utils.get(bot.guilds, id=ID[0])
+				member = discord.utils.get(guild.members, id=user.id)
+				if reaction.emoji==REGISTER_EMOJI_ACCEPT:
+					try:
+						role = discord.utils.get(guild.roles, id=stdrole)
+						await member.add_roles(role)			
+						cursor.execute(f'UPDATE members SET _regist=1 WHERE _id={user.id} AND _guild={guild.id}')
+						await user.send(f"Willkommen auf dem {guild.name} Discord!")
+						await reaction.message.delete()
+					except:
+						raise commands.UserInputError("Registration failed, please contact an admin or the developer (Whitekeks)")
+				elif reaction.emoji==REGISTER_EMOJI_DENY:
+					cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
+					await user.send("Bedingungen müssen akzeptiert werden!")
+					await reaction.message.delete()
+					await member.kick()
+				conn.commit()
+
+@bot.event
+async def on_raw_reaction_add(payload):
+	if not payload.guild_id or payload.user_id==bot.user.id:
+		return
+
+	# check if message id is in sr_messages:
+	cursor.execute(f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
+	if cursor.fetchone():
+		guild = discord.utils.get(bot.guilds, id=payload.guild_id)
+		member = discord.utils.get(guild.members, id=payload.user_id)
+		cursor.execute(f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id={payload.guild_id}')
+		for role_id in cursor.fetchall():
+			if role_id[1]==payload.emoji.name:
+				role = discord.utils.get(guild.roles, id=role_id[0])
 				await member.add_roles(role)
-				await reaction.message.delete()			
-				cursor.execute(f'UPDATE members SET _regist=1 WHERE _id={user.id} AND _guild={guild.id}')
-				await user.send("Willkommen auf dem Open End Discord, um dich bei Charlemagne zu registrieren, schreibe in einen beliebigen Open-End-Channel !register")
-			except:
-				raise commands.UserInputError("Registration failed, please contact an admin or the dev (Whitekeks)")
-		elif reaction.emoji==REGISTER_EMOJI_DENY:
-			cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
-			await reaction.message.delete()
-			await user.send("Bedingungen müssen akzeptiert werden!")
-			await member.kick()
-		conn.commit()
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+	if not payload.guild_id or payload.user_id==bot.user.id:
+		return
+
+	# check if message id is in sr_messages:
+	cursor.execute(f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
+	if cursor.fetchone():
+		guild = discord.utils.get(bot.guilds, id=payload.guild_id)
+		member = discord.utils.get(guild.members, id=payload.user_id)
+		cursor.execute(f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id = {payload.guild_id}')
+		for role_id in cursor.fetchall():
+			if role_id[1]==payload.emoji.name:
+				role = discord.utils.get(guild.roles, id=role_id[0])
+				await member.remove_roles(role)
+
+@bot.event
+async def on_raw_message_delete(payload):
+	cursor.execute(f'DELETE FROM sr_messages WHERE _message_id = {payload.message_id} AND _guild_id = {payload.guild_id}')
+	conn.commit()
 
 """----------------------- Decorators ----------------------------"""
 
@@ -464,17 +505,23 @@ def is_guild_owner():
 		raise commands.UserInputError("You are not the Owner of this Guild")
 	return commands.check(predicate)
 
+def is_in_guild():
+	def predicate(ctx):
+		if ctx.guild:
+			return True
+		raise commands.NoPrivateMessage
+	return commands.check(predicate)
 """------------------------------ Commands --------------------------"""
 
-@bot.command(name='set_twitter', help='set channel for twitter_news')
+@bot.command(name='twitter_set', help=f'set channel for twitter_news twitter_tag without "@" usage: {STDPREFIX}twitter_set twitter_tag(without "@") channel')
 @commands.has_guild_permissions(administrator=True)
-async def set_twitter(ctx, twitter_tag : str, channel : str):
+async def twitter_set(ctx, twitter_tag : str, channel : str):
 	global THREADS
 
 	guild_id = ctx.guild.id
-	Channel = discord.utils.get(guild.channels, name=channel)
+	Channel = discord.utils.get(ctx.guild.channels, name=channel)
 	channel_id = Channel.id
-	usertag = s(twitter_tag)
+	usertag = "@" + s(twitter_tag)
 
 	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
 	if cursor.fetchone():
@@ -485,7 +532,8 @@ async def set_twitter(ctx, twitter_tag : str, channel : str):
 	now = timezone.localize(now)
 	creation_time = now.strftime('%a %b %d %X %z %Y')
 
-	cursor.execute('SELECT _feed_id FROM twitter ORDER BY _rank;')
+	cursor.execute('SELECT _feed_id FROM twitter ORDER BY _feed_id;')
+	feed_id = 0
 	for i,j in enumerate(cursor.fetchall()):
 		if i!=j[0]:
 			feed_id = i
@@ -498,17 +546,19 @@ async def set_twitter(ctx, twitter_tag : str, channel : str):
 	conn.commit()
 
 	THREADS.append( (checkTwitter(usertag=usertag, channel_id=channel_id, CREATION_TIME=creation_time, guild_id=guild_id, feed_id=feed_id), feed_id) )
-	THREADS[len(THREADS-1)][0].start()
+	THREADS[len(THREADS)-1][0].start()
 
-@bot.command(name='delete_twitter', help='deletes set news-feed')
+	await Channel.send(f"Twitter-Feed for {usertag} successfully set in #{Channel.name}")
+
+@bot.command(name='twitter_delete', help=f'deletes news-feed, usage: {STDPREFIX}twitter_delete twitter_tag(without "@") channel')
 @commands.has_guild_permissions(administrator=True)
-async def delete_twitter(ctx, twitter_tag : str, channel : str):
+async def twitter_delete(ctx, twitter_tag : str, channel : str):
 	global THREADS
 
 	guild_id = ctx.guild.id
-	Channel = discord.utils.get(guild.channels, name=channel)
+	Channel = discord.utils.get(ctx.guild.channels, name=channel)
 	channel_id = Channel.id
-	usertag = s(twitter_tag)
+	usertag = "@" + s(twitter_tag)
 
 	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
 	feed = cursor.fetchone()
@@ -524,6 +574,21 @@ async def delete_twitter(ctx, twitter_tag : str, channel : str):
 	cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]};')
 	cursor.execute(f'DROP TABLE twitter_{feed[4]};')
 	conn.commit()
+	await Channel.send(f"Twitter-Feed for {usertag} in #{Channel.name} successfully deleted")
+
+@bot.command(name='twitter_show', help='shows active twitter-feeds')
+@commands.has_guild_permissions(administrator=True)
+async def twitter_show(ctx):
+	cursor.execute(f'SELECT _usertag, _channel_id, _creation_time FROM twitter WHERE _guild_id={ctx.guild.id};')
+	Feeds = cursor.fetchall()
+	if Feeds:
+		Message = "The following Twitter-Feeds are active:\n\n"
+		for i, feed in enumerate(Feeds):
+			channel = discord.utils.get(ctx.guild.channels, id=feed[1])
+			Message += f"Usertag: {feed[0]}, Channel: {channel.name}, Created at: {feed[2]}\n"
+	else:
+		Message = "No active feeds detected"
+	await ctx.send(Message)
 
 @bot.command(name='set_prefix', help=f'choose a new prefix for this Server (Private allways "{STDPREFIX}")')
 @commands.has_guild_permissions(administrator=True)
@@ -537,7 +602,120 @@ async def set_prefix(ctx, prefix : str):
 	else:
 		raise commands.UserInputError("Prefix not allowed!")
 
-@bot.command(name='register_guild', help='registers Guild. WARNING: delets Meta-Data if Guild allready exists', hidden=True)
+@bot.command(name='stdrole', help=f'toggles autoregistration usage: {STDPREFIX}stdrole role(name or id) Message(as String or txt-File-Attachement)')
+@commands.has_guild_permissions(administrator=True)
+async def stdrole(ctx, role_id, Message = None):
+	if type(role_id) == int:
+		role = discord.utils.get(ctx.guild.roles, id=role_id)
+	elif type(role_id) == str:
+		role = discord.utils.get(ctx.guild.roles, name=role_id)
+	
+	if not Message:
+		message = await ctx.message.attachments[0].read()
+		message = message.decode("utf-8")
+	elif Message:
+		message = Message
+	
+	cursor.execute(f'UPDATE guilds SET _stdrole = {role.id}, _message = "{s(message)}" WHERE _id = {ctx.guild.id}')
+	conn.commit()
+	await ctx.send("standart-role set")
+
+@bot.command(name='stdrole_delete', help=f'turns off autoregistration and autodelete')
+@commands.has_guild_permissions(administrator=True)
+async def stdrole_delete(ctx):
+	guild = ctx.guild
+	t = (0, '0', False, )
+	cursor.execute(f'UPDATE guilds SET _stdrole = {t[0]}, _message = "{t[1]}", _autodelete = {t[2]} WHERE _id = {guild.id}')	
+	conn.commit()
+	await ctx.send("autoregistration and autodelete successfully turned off")
+
+@bot.command(name='autodelete', help=f'toggles autodelete for stdrole if User has another Role, usage {STDPREFIX}autodelete True/False')
+@commands.has_guild_permissions(administrator=True)
+async def autodelete(ctx, bed : bool):
+	cursor.execute(f'UPDATE guilds SET _autodelete = {bed} WHERE _id = {ctx.guild.id}')
+	conn.commit()
+	await ctx.send(f"autodelete set to {bed}")
+
+@bot.command(name='stdrole_show', help='shows stdrole and welcome-message')
+@commands.has_guild_permissions(administrator=True)
+async def stdrole_show(ctx):
+
+	cursor.execute(f'SELECT _stdrole, _message FROM guilds WHERE _id = {ctx.guild.id}')
+	stdrole, message = cursor.fetchone()
+	role = discord.utils.get(ctx.guild.roles, id=stdrole)
+	await ctx.send(f"Role: {role.name}\n\nMessage:\n{message}")
+
+@bot.command(name='sr_bond', help=f'binds emoji to role, usage: {STDPREFIX}sr_bond role(name or id) emoji')
+@commands.has_guild_permissions(administrator=True)
+async def sr_bond(ctx, role_id, emoji):
+	guild = ctx.guild
+
+	if type(role_id) == int:
+		role = discord.utils.get(ctx.guild.roles, id=role_id)
+	elif type(role_id) == str:
+		role = discord.utils.get(ctx.guild.roles, name=role_id)
+
+	cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
+	cursor.execute(f'INSERT INTO bonds VALUES ({role.id}, "{emoji}", {guild.id})')
+	conn.commit()
+	await ctx.send(f"bond {role.name} -> {emoji} successfully created")
+
+@bot.command(name='sr_bond_delete', help=f'deletes bond of emoji to role, usage: {STDPREFIX}sr_bond_delete role(name or id) emoji')
+@commands.has_guild_permissions(administrator=True)
+async def sr_bond_delete(ctx, role_id, emoji):
+	guild = ctx.guild
+
+	if type(role_id) == int:
+		role = discord.utils.get(ctx.guild.roles, id=role_id)
+	elif type(role_id) == str:
+		role = discord.utils.get(ctx.guild.roles, name=role_id)
+
+	cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
+	conn.commit()
+	await ctx.send(f"bond {role.name} -> {emoji} successfully deleted")
+
+@bot.command(name='sr_bond_show', help=f'shows bonds of emojis to roles')
+@commands.has_guild_permissions(administrator=True)
+async def sr_bond_show(ctx):
+	# check if role in bond still exists:
+	cursor.execute(f'SELECT _role_id FROM bonds WHERE _guild_id = {ctx.guild.id}')
+	for role in cursor.fetchall():
+		if not ctx.guild.get_role(role[0]):
+			cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role[0]}')
+			break
+	conn.commit()
+	message="Active Bonds:\n\n"
+	cursor.execute(f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id = {ctx.guild.id}')
+	for i, bond in enumerate(cursor.fetchall()):
+		rolename = discord.utils.get(ctx.guild.roles, id=bond[0]).name
+		message += f"{i}: {rolename} -> {bond[1]}\n"
+	await ctx.send(message)
+
+@bot.command(name='sr_message', help=f'creates message for self-role or binds existing message, usage: {STDPREFIX}sr_message message(id (must be new) or str) emojis(*args, ...)')
+@commands.has_guild_permissions(administrator=True)
+async def sr_message(ctx, message_id, *args):
+	try: 
+		message = discord.utils.get(bot.cached_messages, id=int( message_id[ int(len(message_id)-18) :] ))
+	except:
+		message = await ctx.send(message_id)
+
+	cursor.execute(f'INSERT INTO sr_messages VALUES ({message.id}, {ctx.guild.id}, "{message.jump_url}", {message.author.id})')
+	conn.commit()
+	for emoji in args:
+		try: await message.add_reaction(emoji)
+		except: None
+
+@bot.command(name='sr_message_show', help=f'shows created messages for self-role')
+@commands.has_guild_permissions(administrator=True)
+async def sr_message_show(ctx):
+	message = "Active Self-Role Messages:\n\n"
+	cursor.execute(f'SELECT _jump_url, _user_id FROM sr_messages WHERE _guild_id = {ctx.guild.id}')
+	for i, msg in enumerate(cursor.fetchall()):
+		username = discord.utils.get(ctx.guild.members, id=msg[1]).name
+		message += f"Message at {msg[0]} created by {username}\n"
+	await ctx.send(message)
+
+@bot.command(name='register_guild', help='registers Guild. WARNING: deletes Meta-Data if Guild allready exists')
 @is_guild_owner()
 async def register_guild(ctx):
 	guild = ctx.guild
@@ -545,21 +723,12 @@ async def register_guild(ctx):
 	await on_guild_join(guild)
 	await guild.owner.send('Guild successfully registered!') 
 
-@bot.command(name='register', help='register yourself')
+@bot.command(name='register', help='register yourself. WARNING: deletes your Meta-Data')
+@is_in_guild()
 async def register(ctx):
-	member = ctx.author
-	guild = ctx.guild
-
-	if type(member)!=discord.member.Member:
-		raise CustomError("Only callable on Guilds")
-
-	cursor.execute(f'SELECT _id FROM members WHERE _id={member.id} AND _guild={guild.id}')
-	if cursor.fetchone():
-		await on_member_update(member, member)
-		await send_private(member, f"Successfully updated on {guild.name}")
-	else:
-		if await on_member_join(member):
-			await send_private(member, f"Successfully registered on {guild.name}")
+	member = ctx.member
+	await on_member_remove(member)
+	await on_member_join(member)
 
 @bot.command(name='bip', help='bop')
 async def bip(ctx):
@@ -567,17 +736,44 @@ async def bip(ctx):
 	print(ctx.author.roles,"len(roles):",len(ctx.author.roles))
 	print(ctx.author.name, "bop")
 
-@bot.command(name='shutdown', help="shut's down the System")
+@bot.command(name='test', hidden=True)
+async def test(ctx, *args):
+	# await ctx.send( int( args[0][ int(len(args[0])-18) :] ))
+	# message = discord.utils.get(bot.cached_messages, id=int( args[0][ int(len(args[0])-18) :] ))
+	# await ctx.send(message.content)
+
+	for i in bot.cached_messages:
+		print(i.content)
+
+@bot.command(name='shutdown', help="shuts down the System")
 @commands.is_owner()
 async def shutdown(ctx):
 	await ctx.send('Shutting down... Bye!')
 	SHUTDOWN()
 
-@bot.command(name='restart', help="restart's the System")
+@bot.command(name='restart', help="restarts the System")
 @commands.is_owner()
 async def restart(ctx):
 	await ctx.send('Restarting...')
 	RESTART()
+
+@bot.command(name='roll_dice', help='just a standart dice')
+async def roll_dice(ctx):
+	Random = np.random.randint(1,7)
+	await ctx.send(Random)
+
+@bot.command(name='avatar', help='get avatar_url of member as format ‘webp’, ‘jpeg’, ‘jpg’, ‘png’ or ‘gif’, or ‘gif’ (default is ‘webp’)')
+async def avatar(ctx, Member, Format="webp"):
+	MEMBER = discord.utils.get(ctx.guild.members, name=str(Member))
+	await ctx.send(str(MEMBER.avatar_url_as(format=Format)))
+
+@bot.command(name='rand_user', help='get random User on Server')
+async def raffle(ctx):
+	guild = ctx.guild
+	rand_user = np.random.choice(guild.members)
+	while rand_user.bot:
+		rand_user = np.random.choice(guild.members)
+	await ctx.send(rand_user.name)
 
 
 

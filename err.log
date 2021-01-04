@@ -2,3 +2,8 @@ From Whitekeks, command error: Command raised an exception: HTTPException: 503 S
 From Whitekeks, command error: Command raised an exception: AttributeError: 'Context' object has no attribute 'roles'
 From Whitekeks, command error: Expected closing ".
 From Whitekeks, command error: Prefix not allowed!
+From Whitekeks, command error: Command raised an exception: NameError: name 'guild' is not defined
+From Whitekeks, command error: Command raised an exception: AttributeError: 'NoneType' object has no attribute 'id'
+From Whitekeks, command error: Command raised an exception: ProgrammingError: 1054 (42S22): Unknown column '_rank' in 'order clause'
+From Whitekeks, command error: Command raised an exception: UnboundLocalError: local variable 'feed_id' referenced before assignment
+From Whitekeks, command error: Command raised an exception: TypeError: unsupported operand type(s) for -: 'list' and 'int'
