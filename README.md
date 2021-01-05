@@ -1,3 +1,3 @@
-# Open_End_Bot
+# Keks_Bot
 
-A Bot for Discord, designed for the Open End Destiny Clan
+A Bot for Discord, designed for autoroles, self-roles and custom twitter-feeds
