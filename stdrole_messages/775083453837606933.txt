@@ -1,0 +1,28 @@
+```
+​No Category:
+  autodelete      toggles autodelete for stdrole if User has another Role, us...
+  avatar          get avatar_url of member as format ‘webp’, ‘jpeg’, ‘jpg’, ‘...
+  bip             bop
+  help            Shows this message
+  rand_user       get random User on Server
+  register        register yourself. WARNING: deletes your Meta-Data
+  register_guild  registers Guild. WARNING: deletes Meta-Data if Guild allrea...
+  restart         restarts the System
+  roll_dice       just a standart dice
+  set_prefix      choose a new prefix for this Server (Private allways "!")
+  shutdown        shuts down the System
+  sr_bond         binds emoji to role, usage: !sr_bond role(name or id) emoji
+  sr_bond_delete  deletes bond of emoji to role, usage: !sr_bond_delete role(...
+  sr_bond_show    shows bonds of emojis to roles
+  sr_message      creates message for self-role or binds existing message, us...
+  sr_message_show shows created messages for self-role
+  stdrole         toggles autoregistration usage: !stdrole role(name or id) M...
+  stdrole_delete  turns off autoregistration and autodelete
+  stdrole_show    shows stdrole and welcome-message
+  twitter_delete  deletes news-feed, usage: !twitter_delete twitter_tag(witho...
+  twitter_set     set channel for twitter_news twitter_tag without "@" usage:...
+  twitter_show    shows active twitter-feeds
+
+Type //help command for more info on a command.
+You can also type //help category for more info on a category.
+```

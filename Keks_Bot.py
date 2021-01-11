@@ -63,7 +63,7 @@ conn = mysql.connector.connect(
 cursor = conn.cursor(buffered=True)
 
 #create tables if they do not exist:
-cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT, _stdrole BIGINT, _message TEXT, _autodelete BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+cursor.execute('CREATE TABLE IF NOT EXISTS guilds (_id BIGINT, _name TEXT, _prefix TEXT, _stdrole BIGINT, _autodelete BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS members (_id BIGINT, _name TEXT, _nick TEXT, _guild BIGINT, _regist BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS twitter (_usertag TEXT, _channel_id BIGINT, _creation_time TEXT, _guild_id BIGINT, _feed_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bonds (_role_id BIGINT, _emoji TEXT, _guild_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
@@ -300,8 +300,8 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_guild_join(guild):
 	#add guild to DB:
-	t = (guild.id, guild.name, STDPREFIX, 0, '0', False, )
-	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},"{t[4]}",{t[5]});')	
+	t = (guild.id, guild.name, STDPREFIX, 0, False, )
+	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]});')
 	
 	#add all members of guild to DB:
 	for member in guild.members:
@@ -319,6 +319,8 @@ async def on_guild_remove(guild):
 	#delete sr_messages and bonds:
 	cursor.execute(f'DELETE FROM sr_messages WHERE _guild_id={guild.id}')
 	cursor.execute(f'DELETE FROM bonds WHERE _guild_id={guild.id}')
+	#delete stdrole_message:
+	os.remove(PATH + f"/stdrole_messages/{guild.id}.txt")
 
 	#delete twitter feeds and tables:
 	cursor.execute(f'SELECT * FROM twitter WHERE _guild_id={guild.id};')
@@ -374,7 +376,9 @@ async def on_member_join(member):
 	cursor.execute(f'INSERT INTO members VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]})')
 	
 	if regist >= 2 and stdrole:
-		Message = await send_private(member, getter("_message", "guilds", "_id", guild.id))
+		with open(file=PATH + f"/stdrole_messages/{guild.id}.txt", mode="r", encoding="utf8") as r:
+			message = r.read()
+		Message = await send_private(member, message)
 		# (_message_id BIGINT, _guild_id BIGINT, _jump_url TEXT, _user_id BIGINT)
 		cursor.execute(f'INSERT INTO sr_messages VALUES ({Message.id},{guild.id},"0",{member.id})')
 		await Message.add_reaction(REGISTER_EMOJI_ACCEPT)
@@ -601,21 +605,34 @@ async def set_prefix(ctx, prefix : str):
 	else:
 		raise commands.UserInputError("Prefix not allowed!")
 
-@bot.command(name='stdrole', help=f'toggles autoregistration usage: {STDPREFIX}stdrole role(name or id) Message(as String or txt-File-Attachement)')
+@bot.command(name='stdrole', help=f'toggles autoregistration usage: {STDPREFIX}stdrole role(name or id) Message(as String, ID(same Channel) or txt-File-Attachement)')
 @commands.has_guild_permissions(administrator=True)
-async def stdrole(ctx, role_id, Message = None):
-	if type(role_id) == int:
-		role = discord.utils.get(ctx.guild.roles, id=role_id)
-	elif type(role_id) == str:
+async def stdrole(ctx, role_id, message_id = None):
+	try:
+		role = discord.utils.get(ctx.guild.roles, id=int(role_id))
+		if not role: raise CustomError()
+	except:
 		role = discord.utils.get(ctx.guild.roles, name=role_id)
 	
-	if not Message:
-		message = await ctx.message.attachments[0].read()
-		message = message.decode("utf-8")
-	elif Message:
-		message = Message
+	if not message_id:
+		try:
+			message = await ctx.message.attachments[0].read()
+			message = message.decode("utf-8")
+		except:
+			raise commands.UserInputError("No right attachement found")
+	elif message_id:
+		try:
+			message = await ctx.channel.fetch_message(int( message_id[ int(len(message_id)-18) :] ))
+			message = message.content
+			if not message: raise CustomError()
+		except CustomError:
+			raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
+		except:
+			message = message_id
 	
-	cursor.execute(f'UPDATE guilds SET _stdrole = {role.id}, _message = "{s(message)}" WHERE _id = {ctx.guild.id}')
+	cursor.execute(f'UPDATE guilds SET _stdrole = {role.id} WHERE _id = {ctx.guild.id}')
+	with open(file=PATH + f"/stdrole_messages/{ctx.guild.id}.txt", mode="w", encoding="utf8") as w:
+		w.write(message)
 	conn.commit()
 	await ctx.send("standart-role set")
 
@@ -623,26 +640,28 @@ async def stdrole(ctx, role_id, Message = None):
 @commands.has_guild_permissions(administrator=True)
 async def stdrole_delete(ctx):
 	guild = ctx.guild
-	t = (0, '0', False, )
-	cursor.execute(f'UPDATE guilds SET _stdrole = {t[0]}, _message = "{t[1]}", _autodelete = {t[2]} WHERE _id = {guild.id}')	
+	cursor.execute(f'UPDATE guilds SET _stdrole = 0, _autodelete = {False} WHERE _id = {guild.id}')
 	conn.commit()
+	os.remove(PATH + f"/stdrole_messages/{guild.id}.txt")
 	await ctx.send("autoregistration and autodelete successfully turned off")
 
 @bot.command(name='autodelete', help=f'toggles autodelete for stdrole if User has another Role, usage {STDPREFIX}autodelete True/False')
 @commands.has_guild_permissions(administrator=True)
-async def autodelete(ctx, bed : bool):
-	cursor.execute(f'UPDATE guilds SET _autodelete = {bed} WHERE _id = {ctx.guild.id}')
+async def autodelete(ctx, con : bool):
+	cursor.execute(f'UPDATE guilds SET _autodelete = {con} WHERE _id = {ctx.guild.id}')
 	conn.commit()
-	await ctx.send(f"autodelete set to {bed}")
+	await ctx.send(f"autodelete set to {con}")
 
 @bot.command(name='stdrole_show', help='shows stdrole and welcome-message')
 @commands.has_guild_permissions(administrator=True)
 async def stdrole_show(ctx):
 
-	cursor.execute(f'SELECT _stdrole, _message FROM guilds WHERE _id = {ctx.guild.id}')
-	stdrole, message = cursor.fetchone()
+	cursor.execute(f'SELECT _stdrole FROM guilds WHERE _id = {ctx.guild.id}')
+	stdrole = cursor.fetchone()[0]
 	role = discord.utils.get(ctx.guild.roles, id=stdrole)
-	await ctx.send(f"```Role: {role.name}\n\nMessage:\n{message}```")
+	with open(file=PATH + f"/stdrole_messages/{ctx.guild.id}.txt", mode="r", encoding="utf8") as r:
+		message = r.read()
+	await ctx.send(f"Role: {role.name}\n\nMessage:\n{message}")
 
 @bot.command(name='sr_bond', help=f'binds emoji to role, usage: {STDPREFIX}sr_bond role(name or id) emoji')
 @commands.has_guild_permissions(administrator=True)
@@ -690,11 +709,14 @@ async def sr_bond_show(ctx):
 		message += f"{i}: {rolename} -> {bond[1]}\n"
 	await ctx.send(message)
 
-@bot.command(name='sr_message', help=f'creates message for self-role or binds existing message, usage: {STDPREFIX}sr_message message(id(in same channel) or str) emojis(*args, ...)')
+@bot.command(name='sr_message', help=f'creates message for self-role or binds existing message, usage: {STDPREFIX}sr_message Message(as String or ID(same Channel)) emojis(*args, ...)')
 @commands.has_guild_permissions(administrator=True)
-async def sr_message(ctx, message_id, *args):
+async def sr_message(ctx, message_id = None, *args):
 	try:
 		message = await ctx.channel.fetch_message(int( message_id[ int(len(message_id)-18) :] ))
+		if not message: raise CustomError()
+	except CustomError:
+		raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
 	except:
 		message = await ctx.send(message_id)
 
