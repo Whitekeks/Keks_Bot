@@ -94,7 +94,7 @@ print("database set")
 def s(dirtyString):
 	cleanString = None
 	if dirtyString:
-		cleanString = dirtyString.translate({ord(i): None for i in [";"]})
+		cleanString = dirtyString.translate({ord(i): None for i in [";",'"',"'","\\"]})
 	return cleanString
 
 def getter(item, table, column, value):
