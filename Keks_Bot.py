@@ -116,7 +116,7 @@ bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
 # Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
 # 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
-Games = ["v. 1.3.1","/help for infos"]
+Games = ["v. 1.3.4","/help for infos"]
 
 print("bot set")
 
@@ -755,14 +755,13 @@ async def register(ctx):
 async def bip(ctx):
 	await ctx.send('bop')
 
-@bot.command(name='test', hidden=True)
-async def test(ctx, *args):
-	# await ctx.send( int( args[0][ int(len(args[0])-18) :] ))
-	# message = discord.utils.get(bot.cached_messages, id=int( args[0][ int(len(args[0])-18) :] ))
-	# await ctx.send(message.content)
-
-	Message = await ctx.channel.fetch_message(int( args[0][ int(len(args[0])-18) :] ))
-	await ctx.send(Message.content)
+# @bot.command(name='test', hidden=True)
+# async def test(ctx, *args):
+# 	# await ctx.send( int( args[0][ int(len(args[0])-18) :] ))
+# 	# message = discord.utils.get(bot.cached_messages, id=int( args[0][ int(len(args[0])-18) :] ))
+# 	# await ctx.send(message.content)
+# 	for i in args:
+# 		await ctx.send(i)
 
 @bot.command(name='shutdown', help="shuts down the System")
 @commands.is_owner()
