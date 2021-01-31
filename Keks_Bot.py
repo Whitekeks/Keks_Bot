@@ -1138,12 +1138,8 @@ def SHUTDOWN():
 	alive = False
 
 	print("starting shutdown")
-	Tloop = asyncio.new_event_loop()
-	asyncio.set_event_loop(Tloop)
-	Tloop.run_until_complete(StopServer())
-	
-	asyncio.set_event_loop(botloop)
-	botloop.create_task(bot.logout())
+	botloop.run_until_complete(StopServer())
+	botloop.run_until_complete(bot.logout())
 
 	# close running loops
 	while True:
