@@ -9,15 +9,27 @@ import time
 from threading import Thread
 import asyncio
 import numpy as np
+from datetime import datetime
+import SocketServer
 
-
-load_dotenv("TOKEN.env")
-TOKEN = os.getenv('PRINTER_TOKEN')
+PATH = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(f'{PATH}/TOKEN_BOT.env')
+TOKEN = os.getenv('TOKEN')
+TWITCH_CLIENTID = os.getenv("TWITCH_ID")
+TWITCH_SECRET = os.getenv("TWITCH_SECRET")
+TWITCH_CALLBACK = os.getenv("CALLBACK")
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
 Games = ["v. 1.0","!help for infos", "!echo for debugging", '!roll_dice for dice', "!random for rand(s)", "!rand_user no bots :(", 'try !bip',\
 		"!shutdown don't...", "!restart: While True: Bot()", "!avatar for more details"]
 COMMANDS = ['!help', '!echo', '!shell', '!stopshell']
+
+DATA = {'game_name': 'Apex', 'thumbnail_url': 'https://static-cdn.jtvnw.net/previews-ttv/live_user_c4ndygg-1280x720.jpg?cb=1611433033', 'title': 'Streaming Apex and not Destiny 2...', 'user_id': '246901251', 'user_login': 'c4ndygg', 'user_name': 'c4ndygg', 'viewer_count': 0}
+
+
+async def Embed(channel, login_name = "whitekeks"):
+	Embed = discord.Embed(description=f"**Subscription successfully for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
+	return Embed
 
 
 def sleep(Interval):
@@ -46,8 +58,9 @@ def Preference():
 async def on_ready():
 	print(f'{bot.user.name} has connected to Discord!')
 	thread.start()
-	member = discord.utils.get(bot.get_all_members(), name="Steffen")
-	print(len(member.roles))
+	guild = discord.utils.get(bot.guilds, name="DEBUG_SERVER")
+	channel = discord.utils.get(guild.channels, name="debug_1")
+	await channel.send(embed=await Embed(channel=channel))
 
 @bot.event
 async def on_command_error(ctx, error):

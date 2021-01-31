@@ -1,35 +1,12 @@
-from twitchAPI.twitch import Twitch
-from twitchAPI.webhook import TwitchWebHook
-import os, asyncio
-from dotenv import load_dotenv
-from time import sleep
+import asyncio, aiohttp
 
-PATH = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(f'{PATH}/TOKEN_BOT.env')
-TOKEN = os.getenv('TOKEN')
-TWITTER_CONSUMER_KEY = os.getenv('TWITTER_CONSUMER_KEY')
-TWITTER_CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
-TWITTER_ACCESS_TOKEN_KEY = os.getenv('TWITTER_ACCESS_TOKEN_KEY')
-TWITTER_ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-TWITCH_ID = os.getenv('TWITCH_ID')
-TWITCH_SECRET = os.getenv('TWITCH_SECRET')
-SEED = os.getenv('KEY')
+async def POSTRequest(url: str, data):
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url=url, data=data) as resp:
+                return resp.status
 
-twitch = Twitch(TWITCH_ID, TWITCH_SECRET)
-twitch.authenticate_app([])
-user_info = twitch.get_users(logins=['Whitekeks'])
-user_id = user_info['data'][0]['id']
-
-hook = TwitchWebHook('https://167.86.119.250', TWITCH_ID, 443)
-hook.authenticate(twitch)
-hook.start()
-
-def callback_stream_changed(uuid, data):
-    print('Callback for UUID ' + str(uuid))
-    print(data)
-
-print('subscribing to hook:')
-success, uuid = hook.subscribe_stream_changed(user_id, callback_stream_changed)
-print(success)
-if not succes:
-    hook.stop()
+data = b"{'data': [{'game_id': '', 'game_name': '', 'id': '40942377596', 'language': 'en', 'started_at': '2021-01-31T17:22:13Z', 'tag_ids': None, 'thumbnail_url': 'https://static-cdn.jtvnw.net/previews-ttv/live_user_whitekeks-{width}x{height}.jpg', 'title': 'Titel', 'type': 'live', 'user_id': '410772114', 'user_login': 'whitekeks', 'user_name': 'Whitekeks', 'viewer_count': 0}]}"
+empty = b"{'data': []}"
+loop = asyncio.get_event_loop()
+status = loop.run_until_complete(POSTRequest("https://www.whitekeks.tk/410772114", empty))
+print(status)
