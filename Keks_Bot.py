@@ -1133,10 +1133,13 @@ async def StopServer():
 
 def SHUTDOWN():
 	global alive
+	alive = False
 
 	print("starting shutdown")
-	botloop.run_until_complete(StopServer())
-	botloop.create_task(bot.logout())
+	Tloop = asyncio.new_event_loop()
+	asyncio.set_event_loop(Tloop)
+	Tloop.run_until_complete(StopServer())
+	future = asyncio.run_coroutine_threadsafe(bot.logout(), botloop)
 
 	# close running loops
 	while True:
@@ -1147,8 +1150,8 @@ def SHUTDOWN():
 			break
 
 	try:
-		alive = False
 		Preference_Thread.join()
+		Reset_Thread.join()
 		for thread in THREADS:
 			thread[0].stop()
 	except:
