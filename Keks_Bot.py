@@ -1141,7 +1141,9 @@ def SHUTDOWN():
 	alive = False
 
 	print("starting shutdown")
-	StopServer()
+	Tthread = Thread(target=StopServer())
+	Tthread.start()
+	Tthread.join()
 	botloop.run_until_complete(bot.logout())
 
 	# close running loops
