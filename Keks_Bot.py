@@ -1122,6 +1122,7 @@ async def raffle(ctx):
 
 async def StopServer():
 	# unsubscribe for every existing Topics
+	print("start Server shutdown!")
 	for login in TwitchFeeds:
 		await SERVER.HookStream(loginName=login, mode="unsubscribe")
 	print("unsubscribed to all topics, waiting 10 seconds:")
