@@ -1123,15 +1123,13 @@ async def raffle(ctx):
 def StopServer():
 	# unsubscribe for every existing Topics
 	import time
-	loop = asyncio.new_event_loop()
-	asyncio.set_event_loop(loop)
 	print("start Server shutdown!")
 	for login in TwitchFeeds:
-		loop.run_until_complete(SERVER.HookStream(loginName=login, mode="unsubscribe"))
+		asyncio.run_coroutine_threadsafe(SERVER.HookStream(loginName=login, mode="unsubscribe"), botloop)
 	print("unsubscribed to all topics, waiting 10 seconds:")
 	time.sleep(10) # to make sure handler is ready, increase time when neccessery
-	print("done")
 	SERVER.stop()
+	print("done")
 	return True
 
 
@@ -1141,10 +1139,8 @@ def SHUTDOWN():
 	alive = False
 
 	print("starting shutdown")
-	Tthread = Thread(target=StopServer())
-	Tthread.start()
-	Tthread.join()
-	botloop.run_until_complete(bot.logout())
+	StopServer()
+	botloop.create_task(bot.logout())
 
 	# close running loops
 	while True:
