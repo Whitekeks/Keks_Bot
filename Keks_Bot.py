@@ -1128,6 +1128,7 @@ async def StopServer():
 	sleep(10) # to make sure handler is ready, increase time when neccessery
 	print("done")
 	SERVER.stop()
+	return True
 
 
 
@@ -1136,8 +1137,8 @@ def SHUTDOWN():
 	alive = False
 
 	print("starting shutdown")
-
-	asyncio.run_coroutine_threadsafe(StopServer(), botloop)
+	future = asyncio.run_coroutine_threadsafe(StopServer(), botloop)
+	future.result()
 	botloop.create_task(bot.logout())
 
 	# close running loops
