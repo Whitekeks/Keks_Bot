@@ -15,6 +15,12 @@ from datetime import datetime
 import mysql.connector
 import SocketServer
 
+# get creationtime:
+now = datetime.now()
+timezone = pytz.timezone("Europe/Berlin")
+now = timezone.localize(now)
+
+# To make the Setup individuel:
 SEED = str(np.random.randint(0, int(2.e9)))
 
 print("starting...")
@@ -52,6 +58,9 @@ else:
 	TWITCH_CLIENTID = os.getenv('TWITCH_ID')
 	TWITCH_SECRET = os.getenv('TWITCH_SECRET')
 	TWITCH_CALLBACK = os.getenv('CALLBACK')
+	MYSQL_HOST = os.getenv('MYSQL_HOST')
+	MYSQL_USER = os.getenv('MYSQL_USER')
+	MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
 	SEED = os.getenv('KEY')
 
 print("env's set")
@@ -61,20 +70,12 @@ print("env's set")
 # security for Database:
 np.random.seed(int(SEED))
 KEY = np.random.rand()
-now = datetime.now()
-timezone = pytz.timezone("Europe/Berlin")
-now = timezone.localize(now)
 
-
-class CustomError(Exception):
-	pass
-
-
-# create Database:
+# log into Database:
 conn = mysql.connector.connect(
-	host="localhost",
-	user="Whitekeks",
-	password="Ludado80",
+	host=MYSQL_HOST,
+	user=MYSQL_USER,
+	password=MYSQL_PASSWORD,
 	database='keks_bot'
 )
 cursor = conn.cursor(buffered=True)
@@ -89,33 +90,27 @@ cursor.execute('CREATE TABLE IF NOT EXISTS bonds (_role_id BIGINT, _emoji TEXT, 
 cursor.execute('CREATE TABLE IF NOT EXISTS sr_messages (_message_id BIGINT, _guild_id BIGINT, _jump_url TEXT, _user_id BIGINT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 cursor.execute('CREATE TABLE IF NOT EXISTS bot (_key DOUBLE, _creation_time TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 
-# check if key is right:
+# check if key is right, and Bot exists:
 cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
-
-# # Old Setup, now Secured over MySQL
-# if not cursor.fetchone():
-# 	#if key is not the same or does not exist, raise error:
-# 	raise CustomError("End_Bot.db corrupted! To fix this problem simply delete End_Bot.db")
-# else:
-# 	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 722511309622607922,  )
-# 	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}",{g[2]})')
 
 # if Bot does not Exist:
 if not cursor.fetchone():
 	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 722511309622607922,)
 	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}")')
-
 conn.commit()
+
 print("database set")
 
 """------------------important functions---------------------"""
+
+class CustomError(Exception):
+	pass
 
 
 def s(dirtyString):
 	cleanString = None
 	if dirtyString:
-		cleanString = dirtyString.translate(
-			{ord(i): None for i in [";", '"', "'", "\\"]})
+		cleanString = dirtyString.translate({ord(i): None for i in [";", '"', "'", "\\"]})
 	return cleanString
 
 
@@ -183,16 +178,12 @@ print("globals set")
 """---------------------functions----------------------"""
 
 # custom sleep function which breaks when alive = False
-
-
 def sleep(Interval, Condition=True):
 	time_1 = time.time()
 	while time.time()-time_1 < Interval and alive and Condition:
 		None
 
 # changes the bots activity, just for misscalanios purpose
-
-
 def Preference():
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
@@ -231,16 +222,15 @@ class checkTwitter:
 
 	def checkTwitter(self):
 		Tconn = mysql.connector.connect(
-			host="localhost",
-			user="Whitekeks",
-			password="Ludado80",
+			host=MYSQL_HOST,
+			user=MYSQL_USER,
+			password=MYSQL_PASSWORD,
 			database='keks_bot'
 		)
 		c = Tconn.cursor(buffered=True)
 
 		while alive and not self.Stop:
-			statuses = twitter_api.GetUserTimeline(
-				screen_name=self.usertag, count=100)
+			statuses = twitter_api.GetUserTimeline(screen_name=self.usertag, count=100)
 			for rank, status in enumerate(statuses):
 				# check if status.id exists:
 				c.execute(f'SELECT _id FROM {self.table} WHERE _id={status.id}')
@@ -454,8 +444,7 @@ async def on_ready():
 		# Update Members if Guild not exists
 		if guild:
 			for member in guild.members:
-				cursor.execute(
-					f'SELECT _id FROM members WHERE _id={member.id} AND _guild={guild.id}')
+				cursor.execute(f'SELECT _id FROM members WHERE _id={member.id} AND _guild={guild.id}')
 				if cursor.fetchone():
 					await on_member_update(member, member)
 				else:
@@ -466,8 +455,7 @@ async def on_ready():
 			for member_id in Members:
 				Member = discord.utils.get(guild.members, id=member_id[0])
 				if not Member:
-					cursor.execute(
-						f'DELETE FROM members WHERE _id={member_id[0]} AND _guild={guild.id}')
+					cursor.execute(f'DELETE FROM members WHERE _id={member_id[0]} AND _guild={guild.id}')
 		else:
 			cursor.execute(f'DELETE FROM guilds WHERE _id={ID[0]}')
 
@@ -514,8 +502,7 @@ async def on_command_error(ctx, error):
 async def on_guild_join(guild):
 	# add guild to DB:
 	t = (guild.id, guild.name, STDPREFIX, 0, False, )
-	cursor.execute(
-		f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]});')
+	cursor.execute(f'INSERT INTO guilds VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]});')
 
 	# add all members of guild to DB:
 	for member in guild.members:
@@ -563,8 +550,7 @@ async def on_guild_update(before, after):
 async def on_guild_channel_delete(channel):
 	global THREADS
 
-	cursor.execute(
-		f'SELECT * FROM twitter WHERE _channel_id={channel.id} AND _guild_id={channel.guild.id};')
+	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel.id} AND _guild_id={channel.guild.id};')
 	Feeds = cursor.fetchall()
 	for feed in Feeds:
 		for i, thread in enumerate(THREADS):
@@ -592,16 +578,14 @@ async def on_member_join(member):
 
 	# DB-registration
 	t = (member.id, member.name, member.nick, guild.id, regist, )
-	cursor.execute(
-		f'INSERT INTO members VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]})')
+	cursor.execute(f'INSERT INTO members VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]})')
 
 	if regist >= 2 and stdrole:
 		with open(file=PATH + f"/stdrole_messages/{guild.id}.txt", mode="r", encoding="utf8") as r:
 			message = r.read()
 		Message = await send_private(member, message)
 		# (_message_id BIGINT, _guild_id BIGINT, _jump_url TEXT, _user_id BIGINT)
-		cursor.execute(
-			f'INSERT INTO sr_messages VALUES ({Message.id},{guild.id},"0",{member.id})')
+		cursor.execute(f'INSERT INTO sr_messages VALUES ({Message.id},{guild.id},"0",{member.id})')
 		await Message.add_reaction(REGISTER_EMOJI_ACCEPT)
 		await Message.add_reaction(REGISTER_EMOJI_DENY)
 	conn.commit()
@@ -613,10 +597,8 @@ async def on_member_remove(member):
 		return
 
 	guild = member.guild
-	cursor.execute(
-		f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
-	cursor.execute(
-		f'DELETE FROM sr_messages WHERE _user_id={member.id} AND _guild_id={guild.id} AND _jump_url="0"')
+	cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
+	cursor.execute(f'DELETE FROM sr_messages WHERE _user_id={member.id} AND _guild_id={guild.id} AND _jump_url="0"')
 	conn.commit()
 
 
@@ -628,20 +610,16 @@ async def on_member_update(before, after):
 	guild = after.guild
 	# update member:
 	t = (after.nick, after.name)
-	cursor.execute(
-		f'UPDATE members SET _nick="{s(t[0])}", _name="{s(t[1])}" WHERE _id={after.id} AND _guild={guild.id}')
+	cursor.execute(f'UPDATE members SET _nick="{s(t[0])}", _name="{s(t[1])}" WHERE _id={after.id} AND _guild={guild.id}')
 	conn.commit()
 
 	if len(after.roles) > 1:
-		Guest = discord.utils.get(after.roles, id=getter(
-			"_stdrole", "guilds", "_id", guild.id))
+		Guest = discord.utils.get(after.roles, id=getter("_stdrole", "guilds", "_id", guild.id))
 
 		if Guest:
-			cursor.execute(
-				f'SELECT _regist FROM members WHERE _id={after.id} AND _guild={guild.id}')
+			cursor.execute(f'SELECT _regist FROM members WHERE _id={after.id} AND _guild={guild.id}')
 			regist = cursor.fetchone()[0]
-			cursor.execute(
-				f'SELECT _autodelete FROM guilds WHERE _id={guild.id}')
+			cursor.execute(f'SELECT _autodelete FROM guilds WHERE _id={guild.id}')
 			autodelete = cursor.fetchone()[0]
 			# if registered (because member has more than one Role):
 			if regist >> 0 & 0x01 and len(after.roles) > 2 and autodelete:
@@ -649,8 +627,7 @@ async def on_member_update(before, after):
 			elif regist >> 1 & 0x01:
 				regist |= 0x01  # 3 is possible
 
-			cursor.execute(
-				f'UPDATE members SET _regist={regist} WHERE _id={after.id} AND _guild={guild.id}')
+			cursor.execute(f'UPDATE members SET _regist={regist} WHERE _id={after.id} AND _guild={guild.id}')
 
 	conn.commit()
 
@@ -661,13 +638,11 @@ async def on_raw_reaction_add(payload):
 		return
 
 	if not payload.guild_id:
-		cursor.execute(
-			f'SELECT _guild_id FROM sr_messages WHERE _jump_url="0" AND _user_id={payload.user_id} AND _message_id={payload.message_id}')
+		cursor.execute(f'SELECT _guild_id FROM sr_messages WHERE _jump_url="0" AND _user_id={payload.user_id} AND _message_id={payload.message_id}')
 		guild_id = cursor.fetchone()
 		if guild_id:
 
-			cursor.execute(
-				f'SELECT _stdrole FROM guilds WHERE _id={guild_id[0]}')
+			cursor.execute(f'SELECT _stdrole FROM guilds WHERE _id={guild_id[0]}')
 			stdrole = cursor.fetchone()[0]
 			if stdrole:
 
@@ -680,31 +655,25 @@ async def on_raw_reaction_add(payload):
 					try:
 						role = discord.utils.get(guild.roles, id=stdrole)
 						await member.add_roles(role)
-						cursor.execute(
-							f'UPDATE members SET _regist=1 WHERE _id={payload.user_id} AND _guild={guild.id}')
-						cursor.execute(
-							f'DELETE FROM sr_messages WHERE _user_id={payload.user_id} AND _guild_id={guild.id} AND _jump_url="0"')
+						cursor.execute(f'UPDATE members SET _regist=1 WHERE _id={payload.user_id} AND _guild={guild.id}')
+						cursor.execute(f'DELETE FROM sr_messages WHERE _user_id={payload.user_id} AND _guild_id={guild.id} AND _jump_url="0"')
 						await send_private(member, f"Willkommen auf dem {guild.name} Discord!")
 						await message.delete()
 					except:
-						raise commands.UserInputError(
-							f"Registration failed, please contact an admin or the developer ({bot.owner.name})")
+						raise commands.UserInputError(f"Registration failed, please contact an admin or the developer ({bot.owner.name})")
 				elif payload.emoji.name == REGISTER_EMOJI_DENY:
-					cursor.execute(
-						f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
+					cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
 					await send_private(member, "Bedingungen müssen akzeptiert werden!")
 					await message.delete()
 					await member.kick()
 				conn.commit()
 	elif payload.guild_id:
 		# check if message id is in sr_messages:
-		cursor.execute(
-			f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
+		cursor.execute(f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
 		if cursor.fetchone():
 			guild = discord.utils.get(bot.guilds, id=payload.guild_id)
 			member = discord.utils.get(guild.members, id=payload.user_id)
-			cursor.execute(
-				f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id={payload.guild_id}')
+			cursor.execute(f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id={payload.guild_id}')
 			for role_id in cursor.fetchall():
 				if role_id[1] == payload.emoji.name:
 					role = discord.utils.get(guild.roles, id=role_id[0])
@@ -717,13 +686,11 @@ async def on_raw_reaction_remove(payload):
 		return
 
 	# check if message id is in sr_messages:
-	cursor.execute(
-		f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
+	cursor.execute(f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
 	if cursor.fetchone():
 		guild = discord.utils.get(bot.guilds, id=payload.guild_id)
 		member = discord.utils.get(guild.members, id=payload.user_id)
-		cursor.execute(
-			f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id = {payload.guild_id}')
+		cursor.execute(f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id = {payload.guild_id}')
 		for role_id in cursor.fetchall():
 			if role_id[1] == payload.emoji.name:
 				role = discord.utils.get(guild.roles, id=role_id[0])
@@ -734,8 +701,7 @@ async def on_raw_reaction_remove(payload):
 async def on_raw_message_delete(payload):
 	if not payload.guild_id:
 		return
-	cursor.execute(
-		f'DELETE FROM sr_messages WHERE _message_id = {payload.message_id} AND _guild_id = {payload.guild_id}')
+	cursor.execute(f'DELETE FROM sr_messages WHERE _message_id = {payload.message_id} AND _guild_id = {payload.guild_id}')
 	conn.commit()
 
 """----------------------- Decorators ----------------------------"""
@@ -777,8 +743,7 @@ async def twitter_set(ctx, twitter_tag: str, channel: str):
 		raise commands.UserInputError("Channel-Name is wrong!")
 	usertag = "@" + s(twitter_tag)
 
-	cursor.execute(
-		f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
+	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
 	if cursor.fetchone():
 		raise commands.UserInputError("Twitter-Feed allready set")
 
@@ -796,14 +761,11 @@ async def twitter_set(ctx, twitter_tag: str, channel: str):
 		else:
 			feed_id = i+1
 
-	cursor.execute(
-		f'INSERT INTO twitter VALUES ("{usertag}", {channel_id}, "{creation_time}", {guild_id}, {feed_id});')
-	cursor.execute(
-		f'CREATE TABLE IF NOT EXISTS twitter_{feed_id} (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+	cursor.execute(f'INSERT INTO twitter VALUES ("{usertag}", {channel_id}, "{creation_time}", {guild_id}, {feed_id});')
+	cursor.execute(f'CREATE TABLE IF NOT EXISTS twitter_{feed_id} (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
 	conn.commit()
 
-	THREADS.append((checkTwitter(usertag=usertag, channel_id=channel_id,
-								 CREATION_TIME=creation_time, guild_id=guild_id, feed_id=feed_id), feed_id))
+	THREADS.append((checkTwitter(usertag=usertag, channel_id=channel_id, CREATION_TIME=creation_time, guild_id=guild_id, feed_id=feed_id), feed_id))
 	THREADS[len(THREADS)-1][0].start()
 
 	await Channel.send(f"Twitter-Feed for {usertag} successfully set in #{Channel.name}")
@@ -819,8 +781,7 @@ async def twitter_delete(ctx, twitter_tag: str, channel: str):
 	channel_id = Channel.id
 	usertag = "@" + s(twitter_tag)
 
-	cursor.execute(
-		f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
+	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
 	feed = cursor.fetchone()
 	if not feed:
 		raise commands.UserInputError("News-Feed does not exist")
@@ -840,8 +801,7 @@ async def twitter_delete(ctx, twitter_tag: str, channel: str):
 @bot.command(name='twitter_show', help='shows active twitter-feeds')
 @commands.has_guild_permissions(administrator=True)
 async def twitter_show(ctx):
-	cursor.execute(
-		f'SELECT _usertag, _channel_id, _creation_time FROM twitter WHERE _guild_id={ctx.guild.id};')
+	cursor.execute(f'SELECT _usertag, _channel_id, _creation_time FROM twitter WHERE _guild_id={ctx.guild.id};')
 	Feeds = cursor.fetchall()
 	if Feeds:
 		Message = "The following Twitter-Feeds are active:\n\n"
@@ -859,8 +819,7 @@ async def set_prefix(ctx, prefix: str):
 	guild = ctx.guild
 	t = (s(prefix), )
 	if t[0] and t[0] != "":
-		cursor.execute(
-			f'UPDATE guilds SET _prefix="{s(t[0])}" WHERE _id={guild.id}')
+		cursor.execute(f'UPDATE guilds SET _prefix="{s(t[0])}" WHERE _id={guild.id}')
 		conn.commit()
 		await ctx.send(f'New Prefix set: "{getter("_prefix", "guilds", "_id", guild.id)}"')
 	else:
@@ -890,8 +849,7 @@ async def stdrole(ctx, role_id, message_id=None):
 			if not message:
 				raise CustomError()
 		except CustomError:
-			raise commands.UserInputError(
-				"Could not find Message, make sure the Command is in the same Channel as the Message")
+			raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
 		except:
 			message = message_id
 
@@ -907,8 +865,7 @@ async def stdrole(ctx, role_id, message_id=None):
 @commands.has_guild_permissions(administrator=True)
 async def stdrole_delete(ctx):
 	guild = ctx.guild
-	cursor.execute(
-		f'UPDATE guilds SET _stdrole = 0, _autodelete = {False} WHERE _id = {guild.id}')
+	cursor.execute(f'UPDATE guilds SET _stdrole = 0, _autodelete = {False} WHERE _id = {guild.id}')
 	conn.commit()
 	os.remove(PATH + f"/stdrole_messages/{guild.id}.txt")
 	await ctx.send("autoregistration and autodelete successfully turned off")
@@ -917,8 +874,7 @@ async def stdrole_delete(ctx):
 @bot.command(name='autodelete', help=f'toggles autodelete for stdrole if User has another Role, usage {STDPREFIX}autodelete True/False')
 @commands.has_guild_permissions(administrator=True)
 async def autodelete(ctx, con: bool):
-	cursor.execute(
-		f'UPDATE guilds SET _autodelete = {con} WHERE _id = {ctx.guild.id}')
+	cursor.execute(f'UPDATE guilds SET _autodelete = {con} WHERE _id = {ctx.guild.id}')
 	conn.commit()
 	await ctx.send(f"autodelete set to {con}")
 
@@ -945,10 +901,8 @@ async def sr_bond(ctx, role_id, emoji):
 	elif type(role_id) == str:
 		role = discord.utils.get(ctx.guild.roles, name=role_id)
 
-	cursor.execute(
-		f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
-	cursor.execute(
-		f'INSERT INTO bonds VALUES ({role.id}, "{emoji}", {guild.id})')
+	cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
+	cursor.execute(f'INSERT INTO bonds VALUES ({role.id}, "{emoji}", {guild.id})')
 	conn.commit()
 	await ctx.send(f"bond {role.name} -> {emoji} successfully created")
 
@@ -963,8 +917,7 @@ async def sr_bond_delete(ctx, role_id, emoji):
 	elif type(role_id) == str:
 		role = discord.utils.get(ctx.guild.roles, name=role_id)
 
-	cursor.execute(
-		f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
+	cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
 	conn.commit()
 	await ctx.send(f"bond {role.name} -> {emoji} successfully deleted")
 
@@ -973,16 +926,14 @@ async def sr_bond_delete(ctx, role_id, emoji):
 @commands.has_guild_permissions(administrator=True)
 async def sr_bond_show(ctx):
 	# check if role in bond still exists:
-	cursor.execute(
-		f'SELECT _role_id FROM bonds WHERE _guild_id = {ctx.guild.id}')
+	cursor.execute(f'SELECT _role_id FROM bonds WHERE _guild_id = {ctx.guild.id}')
 	for role in cursor.fetchall():
 		if not ctx.guild.get_role(role[0]):
 			cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role[0]}')
 			break
 	conn.commit()
 	message = "Active Bonds:\n\n"
-	cursor.execute(
-		f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id = {ctx.guild.id}')
+	cursor.execute(f'SELECT _role_id, _emoji FROM bonds WHERE _guild_id = {ctx.guild.id}')
 	for i, bond in enumerate(cursor.fetchall()):
 		rolename = discord.utils.get(ctx.guild.roles, id=bond[0]).name
 		message += f"{i}: {rolename} -> {bond[1]}\n"
@@ -997,13 +948,11 @@ async def sr_message(ctx, message_id=None, *args):
 		if not message:
 			raise CustomError()
 	except CustomError:
-		raise commands.UserInputError(
-			"Could not find Message, make sure the Command is in the same Channel as the Message")
+		raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
 	except:
 		message = await ctx.send(message_id)
 
-	cursor.execute(
-		f'INSERT INTO sr_messages VALUES ({message.id}, {ctx.guild.id}, "{message.jump_url}", {message.author.id})')
+	cursor.execute(f'INSERT INTO sr_messages VALUES ({message.id}, {ctx.guild.id}, "{message.jump_url}", {message.author.id})')
 	conn.commit()
 	for emoji in args:
 		try:
@@ -1016,8 +965,7 @@ async def sr_message(ctx, message_id=None, *args):
 @commands.has_guild_permissions(administrator=True)
 async def sr_message_show(ctx):
 	message = "Active Self-Role Messages:\n\n"
-	cursor.execute(
-		f'SELECT _jump_url, _user_id FROM sr_messages WHERE _guild_id = {ctx.guild.id}')
+	cursor.execute(f'SELECT _jump_url, _user_id FROM sr_messages WHERE _guild_id = {ctx.guild.id}')
 	for i, msg in enumerate(cursor.fetchall()):
 		username = discord.utils.get(ctx.guild.members, id=msg[1]).name
 		message += f"Message at {msg[0]} created by {username}\n"
@@ -1243,8 +1191,7 @@ TwitchFeeds = []
 cursor.execute('SELECT * FROM twitter')
 Feeds = cursor.fetchall()
 for feed in Feeds:
-	THREADS.append((checkTwitter(usertag=feed[0], channel_id=feed[1],
-								 CREATION_TIME=feed[2], guild_id=feed[3], feed_id=feed[4]), feed[4]))
+	THREADS.append((checkTwitter(usertag=feed[0], channel_id=feed[1], CREATION_TIME=feed[2], guild_id=feed[3], feed_id=feed[4]), feed[4]))
 
 botloop.run_until_complete(bot.start(TOKEN))
 
