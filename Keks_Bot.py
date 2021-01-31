@@ -1135,6 +1135,7 @@ def SHUTDOWN():
 	global alive
 
 	print("starting shutdown")
+	botloop.run_until_complete(StopServer())
 	botloop.create_task(bot.logout())
 
 	# close running loops
@@ -1144,8 +1145,6 @@ def SHUTDOWN():
 			loop.close()
 		except:
 			break
-
-	botloop.run_until_complete(StopServer())
 
 	try:
 		alive = False
