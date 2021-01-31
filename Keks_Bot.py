@@ -1124,8 +1124,9 @@ async def StopServer():
 	# unsubscribe for every existing Topics
 	for login in TwitchFeeds:
 		await SERVER.HookStream(loginName=login, mode="unsubscribe")
+	print("unsubscribed to all topics, waiting 10 seconds:")
 	sleep(10) # to make sure handler is ready, increase time when neccessery
-	print("unsubscribed to all topics")
+	print("done")
 	SERVER.stop()
 
 
@@ -1144,9 +1145,10 @@ def SHUTDOWN():
 		except:
 			break
 
+	botloop.run_until_complete(StopServer())
+
 	try:
 		alive = False
-		botloop.run_until_complete(StopServer())
 		Preference_Thread.join()
 		for thread in THREADS:
 			thread[0].stop()
