@@ -279,7 +279,7 @@ async def send_private(member, message):
 
 def daily_reset():
 	import time
-	while time.localtime() != RESET_TIME.timetuple() and alive:
+	while (time.localtime()!=RESET_TIME.timetuple()) and alive:
 		None
 	if alive:
 		RESTART()
@@ -1120,13 +1120,14 @@ async def raffle(ctx):
 	await ctx.send(rand_user.name)
 
 
-async def StopServer():
+def StopServer():
 	# unsubscribe for every existing Topics
+	import time
 	print("start Server shutdown!")
 	for login in TwitchFeeds:
-		await SERVER.HookStream(loginName=login, mode="unsubscribe")
+		botloop.run_until_complete(SERVER.HookStream(loginName=login, mode="unsubscribe"))
 	print("unsubscribed to all topics, waiting 10 seconds:")
-	sleep(10) # to make sure handler is ready, increase time when neccessery
+	time.sleep(10) # to make sure handler is ready, increase time when neccessery
 	print("done")
 	SERVER.stop()
 	return True
@@ -1138,7 +1139,7 @@ def SHUTDOWN():
 	alive = False
 
 	print("starting shutdown")
-	botloop.run_until_complete(StopServer())
+	StopServer()
 	botloop.run_until_complete(bot.logout())
 
 	# close running loops
