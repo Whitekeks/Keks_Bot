@@ -156,7 +156,7 @@ REGISTER_EMOJI_DENY = "👎"
 BOT_CREATION_TIME = datetime.strptime(getter(
 	"_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y')  # type = datetime
 
-RESET_TIME = datetime.now()
+RESET_TIME = timezone.localize( datetime.now() )
 if RESET_TIME.time() < datetime(2021, 1, 1, 6, 55, 0, 0).time():
 	RESET_TIME = RESET_TIME.replace(hour=6, minute=55, second=0, microsecond=0)
 else:
@@ -279,6 +279,7 @@ async def send_private(member, message):
 
 def daily_reset():
 	import time
+	from datetime import datetime
 	while (time.localtime()!=RESET_TIME.timetuple()) and alive:
 		None
 	if alive:
@@ -1076,13 +1077,10 @@ async def register(ctx):
 async def bip(ctx):
 	await ctx.send('bop')
 
-# @bot.command(name='test', hidden=True)
-# async def test(ctx, *args):
-# 	# await ctx.send( int( args[0][ int(len(args[0])-18) :] ))
-# 	# message = discord.utils.get(bot.cached_messages, id=int( args[0][ int(len(args[0])-18) :] ))
-# 	# await ctx.send(message.content)
-# 	for i in args:
-# 		await ctx.send(i)
+@bot.command(name='test', hidden=True)
+async def test(ctx, *args):
+	global RESET_TIME
+	RESET_TIME = timezone.localize( datetime.now() )
 
 
 @bot.command(name='shutdown', help="shuts down the System")
@@ -1134,12 +1132,13 @@ def StopServer():
 
 
 
-def SHUTDOWN():
+def SHUTDOWN(mode="shutdown"):
 	global alive
 	alive = False
 
 	print("starting shutdown")
-	StopServer()
+	if mode=="shutdown":
+		StopServer()
 	botloop.create_task(bot.logout())
 
 	# close running loops
@@ -1163,7 +1162,7 @@ def SHUTDOWN():
 
 def RESTART():
 	print("Bot is restarting...")
-	SHUTDOWN()
+	SHUTDOWN(mode="restart")
 	print("Bot has logged out")
 
 	try:
