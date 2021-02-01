@@ -1078,6 +1078,7 @@ async def bip(ctx):
 	await ctx.send('bop')
 
 @bot.command(name='test', hidden=True)
+@commands.is_owner()
 async def test(ctx, *args):
 	global RESET_TIME
 	RESET_TIME = timezone.localize( datetime.now() )
