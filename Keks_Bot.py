@@ -29,25 +29,50 @@ print("starting...")
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 if not os.path.isfile(f'{PATH}/TOKEN_BOT.env'):
-	print("TOKEN_BOT.env not found! Creating new:")
+	GEHEIMNIS=[]
+	print("TOKEN_BOT.env not found! Creating new (TOKEN_BOT ist in .gitignore, so your data is secured):")
 	print("Enter Bot-Token:")
 	TOKEN = str(input())
-	print(f"TOKEN={TOKEN}\nTwitter Data:\nEnter consumer key:")
+	GHEIMNIS.append(f"TOKEN={TOKEN}")
+	print(f"TOKEN={TOKEN}\n\nTwitter Data:\nEnter Twitter consumer key:")
 	TWITTER_CONSUMER_KEY = str(input())
-	print(
-		f'TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nEnter consumer secret:')
+	GHEIMNIS.append(f"TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}")
+	print(f'TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nEnter Twitter consumer secret:')
 	TWITTER_CONSUMER_SECRET = str(input())
-	print(
-		f'TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nEnter access token key:')
+	GHEIMNIS.append(f"TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}")
+	print(f'TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nEnter Twitter access token key:')
 	TWITTER_ACCESS_TOKEN_KEY = str(input())
-	print(
-		f'TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nEnter access token secret:')
+	GHEIMNIS.append(f"TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}")
+	print(f'TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nEnter Twitter access token secret:')
 	TWITTER_ACCESS_TOKEN_SECRET = str(input())
-	print(
-		f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\ncreating Key for Database:")
+	GHEIMNIS.append(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}")
+	print(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\n\nTwitch Data:\nEnter Twitch ClientID:")
+	TWITCH_CLIENTID = str(input())
+	GHEIMNIS.append(f"TWITCH_ID={TWITCH_CLIENTID}")
+	print(f"TWITCH_CLIENTID={TWITCH_CLIENTID}\nEnter Twitch Secret")
+	TWITCH_SECRET = str(input())
+	GHEIMNIS.append(f"TWITCH_SECRET={TWITCH_SECRET}")
+	print(f"TWITCH_SECRET={TWITCH_SECRET}\nEnter Twitch Callback URL where notifications will be send, \
+		verification URL must be set in https://dev.twitch.tv/console/apps/:")
+	TWITCH_CALLBACK = str(input())
+	GHEIMNIS.append(f"CALLBACK={TWITCH_CALLBACK}")
+	print(f"TWITCH_CALLBACK={TWITCH_CALLBACK}\n\nMYSQL_Data:\nEnter MYSQL Host (default=localhost):")
+	MYSQL_HOST = str(input())
+	GHEIMNIS.append(f"MYSQL_HOST={MYSQL_HOST}")
+	print(f"MYSQL_HOST={MYSQL_HOST}\nEnter MYSQL User:")
+	MYSQL_USER = str(input())
+	GHEIMNIS.append(f"MYSQL_USER={MYSQL_USER}")
+	print(f"MYSQL_USER={MYSQL_USER}\nEnter MYSQL User-password")
+	MYSQL_PASSWORD = str(input())
+	GHEIMNIS.append(f"MYSQL_PASSWORD={MYSQL_PASSWORD}")
+	print(f"MYSQL_PASSWORD={MYSQL_PASSWORD}\n\nKey for indentification of Database will be created, do not loose, or Database is not usable!!!:")
 	print(f"KEY={SEED}")
+	GHEIMNIS.append(f"KEY={SEED}")
 	with open(f'{PATH}/TOKEN_BOT.env', 'w') as w:
-		w.write(f"# .env\nTOKEN={TOKEN}\nTWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nTWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nTWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nTWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\nKEY={SEED}")
+		envstr="# .env\n"
+		for i in GEHEIMNIS:
+			envstr += f"{i}\n"
+		w.write(envstr)
 else:
 	load_dotenv(f'{PATH}/TOKEN_BOT.env')
 	TOKEN = os.getenv('TOKEN')
@@ -434,8 +459,7 @@ def data_handler(query):
 
 @bot.event
 async def on_ready():
-	print("")
-	print("Update DataBase...")
+	print("\nUpdate DataBase...")
 
 	# check for new members and missing guilds:
 	cursor.execute('SELECT _id FROM guilds')
@@ -486,7 +510,7 @@ async def on_ready():
 	for thread in THREADS:
 		thread[0].start()
 
-	print("Twitter-Threads have started")
+	print("Twitter-Threads have started\n")
 
 
 @bot.event
