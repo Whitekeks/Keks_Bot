@@ -120,7 +120,7 @@ cursor.execute(f'SELECT _key FROM bot WHERE _key={KEY}')
 
 # if Bot does not Exist:
 if not cursor.fetchone():
-	g = (KEY, now.strftime('%a %b %d %X %z %Y'), 722511309622607922,)
+	g = (KEY, now.strftime('%a %b %d %X %z %Y'),)
 	cursor.execute(f'INSERT INTO bot VALUES ({g[0]},"{g[1]}")')
 conn.commit()
 
@@ -169,7 +169,8 @@ print("bot set")
 twitter_api = twitter.Api(consumer_key=TWITTER_CONSUMER_KEY,
 						  consumer_secret=TWITTER_CONSUMER_SECRET,
 						  access_token_key=TWITTER_ACCESS_TOKEN_KEY,
-						  access_token_secret=TWITTER_ACCESS_TOKEN_SECRET)
+						  access_token_secret=TWITTER_ACCESS_TOKEN_SECRET
+)
 
 print("twitter set")
 
@@ -1168,7 +1169,6 @@ def StopServer():
 	SERVER.stop()
 	print("done")
 	return True
-
 
 
 def SHUTDOWN(mode="shutdown"):
