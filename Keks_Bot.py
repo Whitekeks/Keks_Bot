@@ -997,9 +997,16 @@ async def sr_message_show(ctx):
 	await ctx.send(message)
 
 
-@bot.command(name='twitch_sub', help=f'creates Twitch-Topic subscription, usage: {STDPREFIX}twitch_sub login_name')
+@bot.command(name='twitch_sub', help=f'creates Twitch-Topic subscription (leave Channel empty if calling from same channel), \
+	usage: {STDPREFIX}twitch_sub login_name login_name Channel[optional]')
 @commands.has_guild_permissions(administrator=True)
-async def twitch_sub(ctx, login_name : str):
+async def twitch_sub(ctx, login_name : str, Channel = None):
+	if Channel:
+		channel = discord.utils.get(ctx.guild.channels, name=Channel)
+		if not channel: channel = ctx.channel
+	else:
+		channel = ctx.channel
+
 	User = await SERVER.GETRequest(
 		url='https://api.twitch.tv/helix/users',
 		params={'login': login_name},
@@ -1014,9 +1021,9 @@ async def twitch_sub(ctx, login_name : str):
 	except:
 		raise CustomError("Twitch-Topic not found")
 
-	cursor.execute(f'INSERT INTO twitch_feeds VALUES ({ctx.guild.id},{ctx.channel.id},{UserID},0)')
+	cursor.execute(f'INSERT INTO twitch_feeds VALUES ({ctx.guild.id},{channel.id},{UserID},0)')
 
-	Embed = discord.Embed(description=f"**Subscription successfully for [{login_name}](https://twitch.tv/{login_name}) in <#{ctx.channel.id}>**")
+	Embed = discord.Embed(description=f"**Subscription successfully for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
 
 	cursor.execute(f'SELECT _topic_id FROM twitch_topics WHERE _topic_id={UserID}')
 	if not cursor.fetchall():
@@ -1032,9 +1039,16 @@ async def twitch_sub(ctx, login_name : str):
 	await ctx.send(embed=Embed)
 
 
-@bot.command(name='twitch_unsub', help=f'unsub from existing Twitch-Topic, usage: {STDPREFIX}twitch_unsub login_name')
+@bot.command(name='twitch_unsub', help=f'unsub from existing Twitch-Topic (leave Channel empty if calling from same channel), \
+	usage: {STDPREFIX}twitch_unsub login_name Channel[optional]')
 @commands.has_guild_permissions(administrator=True)
-async def twitch_unsub(ctx, login_name : str):
+async def twitch_unsub(ctx, login_name : str, Channel = None):
+	if Channel:
+		channel = discord.utils.get(ctx.guild.channels, name=Channel)
+		if not channel: channel = ctx.channel
+	else:
+		channel = ctx.channel
+
 	User = await SERVER.GETRequest(
 		url='https://api.twitch.tv/helix/users',
 		params={'login': login_name},
@@ -1048,9 +1062,9 @@ async def twitch_unsub(ctx, login_name : str):
 	except:
 		raise CustomError("Twitch-Topic not found")
 
-	cursor.execute(f'DELETE FROM twitch_feeds WHERE _guild_id={ctx.guild.id} AND _channel_id={ctx.channel.id} AND _topic_id={UserID}')
+	cursor.execute(f'DELETE FROM twitch_feeds WHERE _guild_id={ctx.guild.id} AND _channel_id={channel.id} AND _topic_id={UserID}')
 
-	Embed = discord.Embed(description=f"**Successfully unsubscribed for [{login_name}](https://twitch.tv/{login_name}) in <#{ctx.channel.id}>**")
+	Embed = discord.Embed(description=f"**Successfully unsubscribed for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
 
 	# if no feeds for topic left, delete Topic as well and unsubscribe:
 	cursor.execute(f'SELECT * FROM twitch_feeds WHERE _topic_id={UserID}')
