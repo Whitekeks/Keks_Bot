@@ -1134,7 +1134,7 @@ async def shutdown(ctx):
 @commands.is_owner()
 async def restart(ctx):
 	await ctx.send('Restarting...')
-	RESTART()
+	RESTART(mode="restart")
 
 
 @bot.command(name='roll_dice', help='just a standart dice')
@@ -1199,9 +1199,9 @@ def SHUTDOWN(mode="shutdown"):
 	conn.close()
 
 
-def RESTART():
+def RESTART(mode="shutdown"):
 	print("Bot is restarting...")
-	SHUTDOWN(mode="restart")
+	SHUTDOWN(mode=mode)
 	print("Bot has logged out")
 
 	try:
