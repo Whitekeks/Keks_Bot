@@ -361,7 +361,7 @@ async def twitchOffMessage(topic, NOW):
 			T1 = T(Times[i-1][0])-T(Times[0][0])
 			T2 = T(Time[0])-T(Times[0][0])
 			dT = T2-T1
-			Stream_offline_txt += f"\n[{str(T1).split('.', 2)[0]}-{str(T2).split('.', 2)[0]}]({video['url']}?t={T1.seconds}s) **{Times[i-1][1]}** {timestring(dT)}"
+			Stream_offline_txt += f"\n[`{str(T1).split('.', 2)[0]}-{str(T2).split('.', 2)[0]}`]({video['url']}?t={T1.seconds}s) **{Times[i-1][1]}** {timestring(dT)}"
 
 	Embed = discord.Embed(timestamp=NOW, color=0x363636)
 	Embed.set_author(name=f"{data['login']}", url=f"https://twitch.tv/{data['login']}", icon_url=f"{data['profile_image_url']}")

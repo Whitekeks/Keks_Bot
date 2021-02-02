@@ -29,6 +29,7 @@ DATA = {'game_name': 'Apex', 'thumbnail_url': 'https://static-cdn.jtvnw.net/prev
 
 async def Embed(channel, login_name = "whitekeks"):
 	Embed = discord.Embed(description=f"**Subscription successfully for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
+	Embed.add_field(name="test", value="[`123`](http://www.whitekeks.tk) test")
 	return Embed
 
 
