@@ -1078,6 +1078,7 @@ async def twitch_unsub(ctx, login_name : str, Channel = None):
 		Response = await SERVER.HookStream(login_name, 'unsubscribe')
 		if not Response:
 			cursor.execute(f'DELETE FROM twitch_topics WHERE _topic_id={UserID}')
+			cursor.execute(f"DROP TABLE twitch_{UserID}")
 			await ctx.send(embed=Embed)
 		else:
 			await ctx.send(Response)
