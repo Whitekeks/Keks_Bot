@@ -30,49 +30,53 @@ print("starting...")
 PATH = os.path.dirname(os.path.abspath(__file__))
 if not os.path.isfile(f'{PATH}/TOKEN_BOT.env'):
 	GEHEIMNIS=[]
-	print("TOKEN_BOT.env not found! Creating new (TOKEN_BOT ist in .gitignore, so your data is secured):")
+	print("TOKEN_BOT.env not found! Creating new (make sure TOKEN_BOT.env is in .gitignore, so your data is secured when pushing):")
 	print("Enter Bot-Token:")
 	TOKEN = str(input())
-	GHEIMNIS.append(f"TOKEN={TOKEN}")
+	GEHEIMNIS.append(f"TOKEN={TOKEN}")
 	print(f"TOKEN={TOKEN}\n\nTwitter Data:\nEnter Twitter consumer key:")
 	TWITTER_CONSUMER_KEY = str(input())
-	GHEIMNIS.append(f"TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}")
+	GEHEIMNIS.append(f"TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}")
 	print(f'TWITTER_CONSUMER_KEY={TWITTER_CONSUMER_KEY}\nEnter Twitter consumer secret:')
 	TWITTER_CONSUMER_SECRET = str(input())
-	GHEIMNIS.append(f"TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}")
+	GEHEIMNIS.append(f"TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}")
 	print(f'TWITTER_CONSUMER_SECRET={TWITTER_CONSUMER_SECRET}\nEnter Twitter access token key:')
 	TWITTER_ACCESS_TOKEN_KEY = str(input())
-	GHEIMNIS.append(f"TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}")
+	GEHEIMNIS.append(f"TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}")
 	print(f'TWITTER_ACCESS_TOKEN_KEY={TWITTER_ACCESS_TOKEN_KEY}\nEnter Twitter access token secret:')
 	TWITTER_ACCESS_TOKEN_SECRET = str(input())
-	GHEIMNIS.append(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}")
+	GEHEIMNIS.append(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}")
 	print(f"TWITTER_ACCESS_TOKEN_SECRET={TWITTER_ACCESS_TOKEN_SECRET}\n\nTwitch Data:\nEnter Twitch ClientID:")
 	TWITCH_CLIENTID = str(input())
-	GHEIMNIS.append(f"TWITCH_ID={TWITCH_CLIENTID}")
+	GEHEIMNIS.append(f"TWITCH_ID={TWITCH_CLIENTID}")
 	print(f"TWITCH_CLIENTID={TWITCH_CLIENTID}\nEnter Twitch Secret")
 	TWITCH_SECRET = str(input())
-	GHEIMNIS.append(f"TWITCH_SECRET={TWITCH_SECRET}")
+	GEHEIMNIS.append(f"TWITCH_SECRET={TWITCH_SECRET}")
 	print(f"TWITCH_SECRET={TWITCH_SECRET}\nEnter Twitch Callback URL where notifications will be send, \
 		verification URL must be set in https://dev.twitch.tv/console/apps/:")
 	TWITCH_CALLBACK = str(input())
-	GHEIMNIS.append(f"CALLBACK={TWITCH_CALLBACK}")
+	GEHEIMNIS.append(f"CALLBACK={TWITCH_CALLBACK}")
 	print(f"TWITCH_CALLBACK={TWITCH_CALLBACK}\n\nMYSQL_Data:\nEnter MYSQL Host (default=localhost):")
 	MYSQL_HOST = str(input())
-	GHEIMNIS.append(f"MYSQL_HOST={MYSQL_HOST}")
+	GEHEIMNIS.append(f"MYSQL_HOST={MYSQL_HOST}")
 	print(f"MYSQL_HOST={MYSQL_HOST}\nEnter MYSQL User:")
 	MYSQL_USER = str(input())
-	GHEIMNIS.append(f"MYSQL_USER={MYSQL_USER}")
+	GEHEIMNIS.append(f"MYSQL_USER={MYSQL_USER}")
 	print(f"MYSQL_USER={MYSQL_USER}\nEnter MYSQL User-password")
 	MYSQL_PASSWORD = str(input())
-	GHEIMNIS.append(f"MYSQL_PASSWORD={MYSQL_PASSWORD}")
-	print(f"MYSQL_PASSWORD={MYSQL_PASSWORD}\n\nKey for indentification of Database will be created, do not loose, or Database is not usable!!!:")
+	GEHEIMNIS.append(f"MYSQL_PASSWORD={MYSQL_PASSWORD}")
+	print(f"MYSQL_PASSWORD={MYSQL_PASSWORD}\nEnter MYSQL Database-Name")
+	MYSQL_DATABASE = str(input())
+	GEHEIMNIS.append(f"MYSQL_DATABASE={MYSQL_DATABASE}")
+	print(f"MYSQL_DATABASE={MYSQL_DATABASE}\n\nKey for indentification of Database will be created, do not loose, or Database is not usable!!!:")
+	GEHEIMNIS.append(f"KEY={SEED}")
 	print(f"KEY={SEED}")
-	GHEIMNIS.append(f"KEY={SEED}")
 	with open(f'{PATH}/TOKEN_BOT.env', 'w') as w:
 		envstr="# .env\n"
 		for i in GEHEIMNIS:
 			envstr += f"{i}\n"
 		w.write(envstr)
+	GEHEIMNIS=[]
 else:
 	load_dotenv(f'{PATH}/TOKEN_BOT.env')
 	TOKEN = os.getenv('TOKEN')
@@ -86,6 +90,7 @@ else:
 	MYSQL_HOST = os.getenv('MYSQL_HOST')
 	MYSQL_USER = os.getenv('MYSQL_USER')
 	MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
+	MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 	SEED = os.getenv('KEY')
 
 print("env's set")
@@ -101,7 +106,7 @@ conn = mysql.connector.connect(
 	host=MYSQL_HOST,
 	user=MYSQL_USER,
 	password=MYSQL_PASSWORD,
-	database='keks_bot'
+	database=MYSQL_DATABASE
 )
 cursor = conn.cursor(buffered=True)
 
@@ -251,7 +256,7 @@ class checkTwitter:
 			host=MYSQL_HOST,
 			user=MYSQL_USER,
 			password=MYSQL_PASSWORD,
-			database='keks_bot'
+			database=MYSQL_DATABASE
 		)
 		c = Tconn.cursor(buffered=True)
 
@@ -346,13 +351,13 @@ async def twitchOffMessage(topic, NOW):
 	)
 	try:
 		video = Video['data'][0]
-		VOD_txt = f"[Video Link]({video['url']})\nOr click one of the Timestamps above"
+		VOD_txt = f"[{video['title']}]({video['url']})\nClick on the Link or on one of the Timestamps above"
 	except:
 		video = {'url' : None}
 		VOD_txt = "No Video found"
 
 	# Make Stream_ofline_txt
-	Stream_offline_txt = "Games played:"
+	Stream_offline_txt = ""
 	cursor.execute(f"SELECT * FROM twitch_{topic}")
 	Times = cursor.fetchall()
 	T = lambda x: datetime.strptime(x, '%a %b %d %X %z %Y')
@@ -361,14 +366,14 @@ async def twitchOffMessage(topic, NOW):
 			T1 = T(Times[i-1][0])-T(Times[0][0])
 			T2 = T(Time[0])-T(Times[0][0])
 			dT = T2-T1
-			Stream_offline_txt += f"\n[`{str(T1).split('.', 2)[0]}-{str(T2).split('.', 2)[0]}`]({video['url']}?t={T1.seconds}s) **{Times[i-1][1]}** {timestring(dT)}"
+			Stream_offline_txt += f"[`{str(T1).split('.', 2)[0]}-{str(T2).split('.', 2)[0]}`]({video['url']}?t={T1.seconds}s) **{Times[i-1][1]}** {timestring(dT)}\n"
 
 	Embed = discord.Embed(timestamp=NOW, color=0x363636)
 	Embed.set_author(name=f"{data['login']}", url=f"https://twitch.tv/{data['login']}", icon_url=f"{data['profile_image_url']}")
 	Embed.set_image(url=f"{data['offline_image_url']}")
 	Embed.set_thumbnail(url=f"{data['profile_image_url']}")
 	Embed.set_footer(text="Last online")
-	Embed.add_field(name="Stream offline", value=Stream_offline_txt, inline=False)
+	Embed.add_field(name="Games played", value=Stream_offline_txt, inline=False)
 	Embed.add_field(name="Stream Video", value=VOD_txt, inline=False)
 	return (Embed, UserName)
 
@@ -1115,6 +1120,7 @@ async def register(ctx):
 @bot.command(name='bip', help='bop')
 async def bip(ctx):
 	await ctx.send('bop')
+
 
 @bot.command(name='test', hidden=True)
 @commands.is_owner()

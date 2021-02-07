@@ -13,7 +13,10 @@ class Handler:
     def __init__(self, CLIENTID, SECRET, CALLBACK, DataHandler=print, HOST='localhost', PORT_REC=50007, PORT_SEND=50008):
         self.CLIENTID = CLIENTID
         self.SECRET = SECRET
-        self.CALLBACK = CALLBACK
+        if CALLBACK[len(CALLBACK)-1]=="/":
+            self.CALLBACK = CALLBACK + f"twitch/{UserID}"
+        else:
+            self.CALLBACK = CALLBACK + f"/twitch/{UserID}"
         self.HOST = HOST
         self.PORT_REC = PORT_REC
         self.PORT_SEND = PORT_SEND
@@ -139,7 +142,7 @@ class Handler:
         subscription = await self.POSTRequest(
             url='https://api.twitch.tv/helix/webhooks/hub',
             params={
-                'hub.callback': self.CALLBACK + f"/{UserID}",
+                'hub.callback': self.CALLBACK,
                 'hub.mode': mode,
                 'hub.topic': f"https://api.twitch.tv/helix/streams?user_id={UserID}",
                 'hub.lease_seconds': 86400,
