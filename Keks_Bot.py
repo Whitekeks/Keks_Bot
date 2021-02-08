@@ -902,7 +902,7 @@ async def stdrole_delete(ctx):
 	await ctx.send("autoregistration and autodelete successfully turned off")
 
 
-@bot.command(name='autodelete', help=f'toggles autodelete for stdrole if User has another Role, usage {STDPREFIX}autodelete True/False')
+@bot.command(name='autodelete', help=f'toggles autodelete for stdrole if User has another Role, default = False, usage: {STDPREFIX}autodelete True/False')
 @commands.has_guild_permissions(administrator=True)
 async def autodelete(ctx, con: bool):
 	cursor.execute(f'UPDATE guilds SET _autodelete = {con} WHERE _id = {ctx.guild.id}')
@@ -982,9 +982,13 @@ async def sr_message(ctx, message_id=None, *args):
 		raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
 	except:
 		message = await ctx.send(message_id)
-
-	cursor.execute(f'INSERT INTO sr_messages VALUES ({message.id}, {ctx.guild.id}, "{message.jump_url}", {message.author.id})')
+	
+	# test if Message allready exists in Database (then this is a update):
+	cursor.execute(f'SELECT * FROM sr_messages WHERE _message_id={message.id} AND _guild_id={ctx.guild.id} AND _jump_url="{message.jump_url}" AND _user_id={message.author.id}')
+	if not cursor.fetchone():
+		cursor.execute(f'INSERT INTO sr_messages VALUES ({message.id}, {ctx.guild.id}, "{message.jump_url}", {message.author.id})')
 	conn.commit()
+	
 	for emoji in args:
 		try:
 			await message.add_reaction(emoji)

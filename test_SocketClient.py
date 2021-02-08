@@ -1,5 +1,23 @@
-import socket, pickle
+import socket, pickle, SocketServer, asyncio, os
 from werkzeug import Response
+from dotenv import load_dotenv
+
+PATH = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(f'{PATH}/TOKEN_BOT.env')
+TOKEN = os.getenv('TOKEN')
+TWITTER_CONSUMER_KEY = os.getenv('TWITTER_CONSUMER_KEY')
+TWITTER_CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
+TWITTER_ACCESS_TOKEN_KEY = os.getenv('TWITTER_ACCESS_TOKEN_KEY')
+TWITTER_ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+TWITCH_CLIENTID = os.getenv('TWITCH_ID')
+TWITCH_SECRET = os.getenv('TWITCH_SECRET')
+TWITCH_CALLBACK = os.getenv('CALLBACK')
+MYSQL_HOST = os.getenv('MYSQL_HOST')
+MYSQL_USER = os.getenv('MYSQL_USER')
+MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
+MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
+SEED = os.getenv('KEY')
+
 
 class ProcessData:
     def __init__(self, Message=None):
@@ -24,29 +42,12 @@ Dic = {
    }
 }
 
+Server = SocketServer.Handler(TWITCH_CLIENTID, TWITCH_SECRET, "https://whitekeks.tk/")
 
-HOST = 'localhost'
-PORT_SEND = 50007
-PORT_REC = 50008
-for i in range(0,1):
-    try:
-        # Pickle the object and send it to the server
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOST, PORT_SEND))
-        data_string = pickle.dumps(Dic)
-        s.send(data_string)
-        s.close()
+Names = ["whitekeks", "c4ndygg", "gronkh", "gladd"]
+async def t():
+    for i in Names:
+        await Server.HookStream(i,"unsubscribe")
 
-        # Wait for response and send it to Twitch
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((HOST, PORT_REC))
-        s.listen()
-        conn, addr = s.accept()
-        data = conn.recv(4096)
-        data_variable = pickle.loads(data)
-        conn.close()
-        s.close()
-
-        print(data_variable.response)
-    except:
-        print(404)
+loop = asyncio.get_event_loop()
+loop.run_until_complete(t())
