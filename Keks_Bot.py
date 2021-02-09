@@ -1053,7 +1053,7 @@ async def subscription(guild, Channel, login_name, channel_id, mode):
 			Response = await SERVER.HookStream(login_name, 'subscribe')
 			if not Response:
 				cursor.execute(f'INSERT INTO twitch_topics VALUES ({UserID}, "{s(login_name)}")')
-				TwitchFeeds.append[login_name]
+				TwitchFeeds.append(login_name)
 				conn.commit()
 				return (None, Embed)
 			else:
@@ -1074,7 +1074,7 @@ async def subscription(guild, Channel, login_name, channel_id, mode):
 			Response = await SERVER.HookStream(login_name, 'unsubscribe')
 			if not Response:
 				cursor.execute(f'DELETE FROM twitch_topics WHERE _topic_id={UserID}')
-				TwitchFeeds.remove(topic[0])
+				TwitchFeeds.remove(login_name)
 				try:
 					cursor.execute(f"DROP TABLE twitch_{UserID}")
 				except:
