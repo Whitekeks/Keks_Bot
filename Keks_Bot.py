@@ -314,7 +314,9 @@ def daily_reset():
 	while (time.localtime()!=RESET_TIME.timetuple()) and alive:
 		None
 	if alive:
-		RESTART()
+		# renew subsciptions
+		for login in TwitchFeeds:
+			asyncio.run_coroutine_threadsafe(SERVER.HookStream(loginName=login, mode="subscribe"), botloop)
 
 
 def timestring(deltatime):
@@ -554,6 +556,15 @@ async def on_guild_remove(guild):
 	cursor.execute(f'DELETE FROM bonds WHERE _guild_id={guild.id}')
 	# delete stdrole_message:
 	os.remove(PATH + f"/stdrole_messages/{guild.id}.txt")
+
+	# delete Twitch_Feeds and Tables:
+	"twitch_feeds (_guild_id BIGINT, _channel_id BIGINT, _topic_id BIGINT, _message_id BIGINT)"
+	cursor.execute(f'SELECT * FROM twitch_feeds WHERE _guild_id={guild.id}')
+	Feeds = cursor.fetchall()
+	for feed in Feeds:
+		cursor.execute(f'SELECT _login FROM twitch_topics WHERE _topic_id={feed[2]}')
+		login = cursor.fetchone()
+		await subscription(guild, None, login[0], feed[1], "unsubscribe")
 
 	# delete twitter feeds and tables:
 	cursor.execute(f'SELECT * FROM twitter WHERE _guild_id={guild.id};')
@@ -1007,15 +1018,17 @@ async def sr_message_show(ctx):
 	await ctx.send(message)
 
 
-@bot.command(name='twitch_sub', help=f'creates Twitch-Topic subscription (leave Channel empty if calling from same channel), \
-	usage: {STDPREFIX}twitch_sub login_name login_name Channel[optional]')
-@commands.has_guild_permissions(administrator=True)
-async def twitch_sub(ctx, login_name : str, Channel = None):
-	if Channel:
-		channel = discord.utils.get(ctx.guild.channels, name=Channel)
-		if not channel: channel = ctx.channel
+async def subscription(guild, Channel, login_name, channel_id, mode):
+	global TwitchFeeds
+
+	if channel_id:
+		if type(channel_id)==int:
+			channel = discord.utils.get(guild.channels, id=channel_id)
+		else:
+			channel = discord.utils.get(guild.channels, name=channel_id)
+		if not channel: channel = Channel
 	else:
-		channel = ctx.channel
+		channel = Channel
 
 	User = await SERVER.GETRequest(
 		url='https://api.twitch.tv/helix/users',
@@ -1027,72 +1040,69 @@ async def twitch_sub(ctx, login_name : str, Channel = None):
 	)
 	try:
 		UserID = User['data'][0]['id']
-		UserName = User['data'][0]['login']
 	except:
 		raise CustomError("Twitch-Topic not found")
 
-	cursor.execute(f'INSERT INTO twitch_feeds VALUES ({ctx.guild.id},{channel.id},{UserID},0)')
+	if mode=="subscribe":
+		cursor.execute(f'INSERT INTO twitch_feeds VALUES ({guild.id},{channel.id},{UserID},0)')
 
-	Embed = discord.Embed(description=f"**Subscription successfully for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
+		Embed = discord.Embed(description=f"**Subscription successfully for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
 
-	cursor.execute(f'SELECT _topic_id FROM twitch_topics WHERE _topic_id={UserID}')
-	if not cursor.fetchall():
-		Response = await SERVER.HookStream(login_name, 'subscribe')
-		if not Response:
-			cursor.execute(f'INSERT INTO twitch_topics VALUES ({UserID}, "{s(UserName)}")')
-			await ctx.send(embed=Embed)
-		else:
-			await ctx.send(Response)
-		return
-	
-	conn.commit()
-	await ctx.send(embed=Embed)
+		cursor.execute(f'SELECT _topic_id FROM twitch_topics WHERE _topic_id={UserID}')
+		if not cursor.fetchall():
+			Response = await SERVER.HookStream(login_name, 'subscribe')
+			if not Response:
+				cursor.execute(f'INSERT INTO twitch_topics VALUES ({UserID}, "{s(login_name)}")')
+				TwitchFeeds.append[login_name]
+				conn.commit()
+				return (None, Embed)
+			else:
+				conn.commit()
+				return (Response, None)
+		
+		conn.commit()
+		return (None, Embed)
+
+	elif mode=="unsubscribe":
+		cursor.execute(f'DELETE FROM twitch_feeds WHERE _guild_id={guild.id} AND _channel_id={channel.id} AND _topic_id={UserID}')
+
+		Embed = discord.Embed(description=f"**Successfully unsubscribed for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
+
+		# if no feeds for topic left, delete Topic as well and unsubscribe:
+		cursor.execute(f'SELECT * FROM twitch_feeds WHERE _topic_id={UserID}')
+		if not cursor.fetchall():
+			Response = await SERVER.HookStream(login_name, 'unsubscribe')
+			if not Response:
+				cursor.execute(f'DELETE FROM twitch_topics WHERE _topic_id={UserID}')
+				TwitchFeeds.remove(topic[0])
+				try:
+					cursor.execute(f"DROP TABLE twitch_{UserID}")
+				except:
+					None
+				conn.commit()
+				return (None, Embed)
+			else:
+				conn.commit()
+				return (Response, None)
+
+		conn.commit()
+		return (None, Embed)
+
+
+@bot.command(name='twitch_sub', help=f'creates Twitch-Topic subscription (leave Channel empty if calling from same channel), \
+	usage: {STDPREFIX}twitch_sub login_name login_name Channel[optional]')
+@commands.has_guild_permissions(administrator=True)
+async def twitch_sub(ctx, login_name : str, Channel = None):
+	content, embed = await subscription(ctx.guild, ctx.channel, login_name, Channel, "subscribe")
+	await ctx.send(content=content, embed=embed)
 
 
 @bot.command(name='twitch_unsub', help=f'unsub from existing Twitch-Topic (leave Channel empty if calling from same channel), \
 	usage: {STDPREFIX}twitch_unsub login_name Channel[optional]')
 @commands.has_guild_permissions(administrator=True)
 async def twitch_unsub(ctx, login_name : str, Channel = None):
-	if Channel:
-		channel = discord.utils.get(ctx.guild.channels, name=Channel)
-		if not channel: channel = ctx.channel
-	else:
-		channel = ctx.channel
-
-	User = await SERVER.GETRequest(
-		url='https://api.twitch.tv/helix/users',
-		params={'login': login_name},
-		headers = {
-			'Authorization': await SERVER.getToken(),
-			'Client-Id': SERVER.CLIENTID
-		}
-	)
-	try:
-		UserID = User['data'][0]['id']
-	except:
-		raise CustomError("Twitch-Topic not found")
-
-	cursor.execute(f'DELETE FROM twitch_feeds WHERE _guild_id={ctx.guild.id} AND _channel_id={channel.id} AND _topic_id={UserID}')
-
-	Embed = discord.Embed(description=f"**Successfully unsubscribed for [{login_name}](https://twitch.tv/{login_name}) in <#{channel.id}>**")
-
-	# if no feeds for topic left, delete Topic as well and unsubscribe:
-	cursor.execute(f'SELECT * FROM twitch_feeds WHERE _topic_id={UserID}')
-	if not cursor.fetchall():
-		Response = await SERVER.HookStream(login_name, 'unsubscribe')
-		if not Response:
-			cursor.execute(f'DELETE FROM twitch_topics WHERE _topic_id={UserID}')
-			try:
-				cursor.execute(f"DROP TABLE twitch_{UserID}")
-			except:
-				None
-			await ctx.send(embed=Embed)
-		else:
-			await ctx.send(Response)
-		return
-
-	conn.commit()
-	await ctx.send(embed=Embed)
+	content, embed = await subscription(ctx.guild, ctx.channel, login_name, Channel, "unsubscribe")
+	await ctx.send(content=content, embed=embed)
 
 
 @bot.command(name='twitch_show', help=f'shows active twitch_feeds for this Channel')

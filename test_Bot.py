@@ -6,7 +6,7 @@ import asyncio
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(f'{PATH}/TOKEN_BOT.env')
-TOKEN = os.getenv('TOKENz')
+TOKEN = os.getenv('TOKEN')
 TWITCH_CLIENTID = os.getenv("TWITCH_ID")
 TWITCH_SECRET = os.getenv("TWITCH_SECRET")
 TWITCH_CALLBACK = os.getenv("CALLBACK")
@@ -32,3 +32,11 @@ async def on_ready():
 	guild = discord.utils.get(bot.guilds, name="Keks")
 	channel = discord.utils.get(guild.channels, name="system")
 	await channel.send(":sob:")
+
+
+@bot.command
+async def test(ctx):
+	await ctx.send("test")
+
+
+botloop.run_until_complete(bot.start(TOKEN))
