@@ -309,7 +309,6 @@ async def send_private(member, message):
 
 
 def daily_reset():
-	import time
 	from datetime import datetime
 	while (time.localtime()!=RESET_TIME.timetuple()) and alive:
 		None
@@ -402,7 +401,7 @@ async def twitchOnMessage(topic, NOW, footer, Data):
 		Embed.add_field(name="Game", value=f"{Data['game_name']}")
 	else:
 		Embed.add_field(name="Game", value="No Game")
-	Embed.set_image(url=Data['thumbnail_url'].replace('{width}x{height}', '1280x720'))
+	Embed.set_image(url=f"{Data['thumbnail_url'].replace('{width}x{height}', '1280x720')}?cb={int(time.mktime(NOW.timetuple()))}")
 	return Embed
 
 
