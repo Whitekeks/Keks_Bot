@@ -309,13 +309,14 @@ async def send_private(member, message):
 
 
 def daily_reset():
-	from datetime import datetime
 	while (time.localtime()!=RESET_TIME.timetuple()) and alive:
 		None
 	if alive:
-		# renew subsciptions
-		for login in TwitchFeeds:
-			asyncio.run_coroutine_threadsafe(SERVER.HookStream(loginName=login, mode="subscribe"), botloop)
+		# # renew subsciptions
+		# for login in TwitchFeeds:
+		# 	asyncio.run_coroutine_threadsafe(SERVER.HookStream(loginName=login, mode="subscribe"), botloop)
+		try: RESTART(mode="restart")
+		except: None
 
 
 def timestring(deltatime):
