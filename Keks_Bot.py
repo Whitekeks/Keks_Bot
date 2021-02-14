@@ -1114,8 +1114,37 @@ async def twitch_show(ctx):
 	for feed in Feeds:
 		Channel = discord.utils.get(ctx.guild.channels, id=feed[0])
 		Name = getter('_login', 'twitch_topics', '_topic_id', feed[1])
-		Embed.add_field(name=f'#{Channel.name}', value=f"[{Name}](https://twitch.tv/{Name})")
+		Embed.add_field(name=f'<#{Channel.name}>', value=f"[{Name}](https://twitch.tv/{Name})")
 	await ctx.send(embed=Embed)
+
+@bot.command(name='show_subs', hidden=True)
+@commands.is_owner()
+async def show_subs(ctx):
+	headers={
+			'Authorization': await SERVER.getToken(),
+			'Client-Id': SERVER.CLIENTID
+		}
+	Subs = await SERVER.GETRequest(
+		url="https://api.twitch.tv/helix/webhooks/subscriptions",
+		headers=headers
+	)
+	
+	Embed = discord.Embed(title=f"{Subs['total']} active Twitch subscriptions found")
+	user_list = []
+	sub_infos = []
+	
+	for sub in Subs['data']:
+		user_list.append( ['id', str(int(sub['topic'].replace("https://api.twitch.tv/helix/streams?user_id=", "")))] )
+	
+	Users = await SERVER.GETRequest(
+		url="https://api.twitch.tv/helix/users",
+		params=user_list,
+		headers=headers
+	)
+
+	for i, user in enumerate(Users):
+		data = Subs['data'][i]
+		Embed.add_field(name=f'[{user["login"]}](https://twitch.tv/{user["login"]})', value=f'callback: {data["callback"]}\nexpires_at: {data["expires_at"]}')
 
 
 @bot.command(name='register_guild', help='registers Guild. WARNING: deletes Meta-Data if Guild allready exists')

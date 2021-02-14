@@ -44,10 +44,16 @@ Dic = {
 
 Server = SocketServer.Handler(TWITCH_CLIENTID, TWITCH_SECRET, "https://whitekeks.tk/")
 
-Names = ["whitekeks", "c4ndygg", "gronkh", "gladd"]
 async def t():
-    for i in Names:
-        await Server.HookStream(i,"unsubscribe")
+    Users = await Server.GETRequest(
+        url="https://api.twitch.tv/helix/users",
+        params=[["login","whitekeks"],["login","c4ndygg"]],
+        headers={
+			'Authorization': await Server.getToken(),
+			'Client-Id': Server.CLIENTID
+		}
+    )
+    print(Users)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(t())
