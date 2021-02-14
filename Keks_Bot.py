@@ -1126,6 +1126,7 @@ async def show_subs(ctx):
 		}
 	Subs = await SERVER.GETRequest(
 		url="https://api.twitch.tv/helix/webhooks/subscriptions",
+		params=None,
 		headers=headers
 	)
 	
@@ -1142,9 +1143,11 @@ async def show_subs(ctx):
 		headers=headers
 	)
 
-	for i, user in enumerate(Users):
+	for i, user in enumerate(Users['data']):
 		data = Subs['data'][i]
-		Embed.add_field(name=f'[{user["login"]}](https://twitch.tv/{user["login"]})', value=f'callback: {data["callback"]}\nexpires_at: {data["expires_at"]}')
+		Embed.add_field(name=f'{user["login"]}', value=f'callback: {data["callback"]}\nexpires_at: {data["expires_at"]}')
+
+	await ctx.send(embed=Embed)
 
 
 @bot.command(name='register_guild', help='registers Guild. WARNING: deletes Meta-Data if Guild allready exists')
