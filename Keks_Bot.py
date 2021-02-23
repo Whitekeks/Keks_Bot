@@ -1205,9 +1205,8 @@ async def roll_dice(ctx, sites=6):
 
 @bot.command(name='rand', help=f'get a random number between start and stop')
 async def rand(ctx, start, stop, Type=int):
-	if Type==float:
-		Random = (stop-start)*np.random.random()+start
-	else:
+	Random = (int(stop)-int(start))*np.random.random()+int(start)
+	if Type==int:
 		Random = int(np.round(Random))
 	await ctx.send(embed=discord.Embed(description=f"**Random between {start} and {stop} as {Type}:**\n\n {Random}"))
 
