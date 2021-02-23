@@ -1181,21 +1181,35 @@ async def test(ctx, *args):
 @bot.command(name='shutdown', help="shuts down the System")
 @commands.is_owner()
 async def shutdown(ctx):
-	await ctx.send(embed=discord.Embed(description='Shutting down... Bye!'))
+	await ctx.send('Shutting down... Bye!')
 	SHUTDOWN()
 
 
 @bot.command(name='restart', help="restarts the System")
 @commands.is_owner()
 async def restart(ctx):
-	await ctx.send(embed=discord.Embed(description='Restarting...'))
+	await ctx.send('Restarting...')
 	RESTART(mode="restart")
 
 
 @bot.command(name='dice', help=f'just a variable dice, usage {STDPREFIX}dice sites(=6)')
 async def roll_dice(ctx, sites=6):
-	Random = np.random.randint(1, sites+1)
+	if sites==0:
+		Random = 0
+	elif sites<0:
+		Random = -np.random.randint(1, -sites+1)
+	else:
+		Random = np.random.randint(1, sites+1)
 	await ctx.send(embed=discord.Embed(description=f"**D{sites}:**\n\n {Random}"))
+
+
+@bot.command(name='rand', help=f'get a random number between start and stop')
+async def rand(ctx, start, stop, Type=int):
+	if Type==float:
+		Random = (stop-start)*np.random.random()+start
+	else:
+		Random = int(np.round(Random))
+	await ctx.send(embed=discord.Embed(description=f"**Random between {start} and {stop} as {Type}:**\n\n {Random}"))
 
 
 @bot.command(name='avatar', help='get avatar_url of member as format ‘webp’, ‘jpeg’, ‘jpg’, ‘png’ or ‘gif’ (default is ‘webp’)')
