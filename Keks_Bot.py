@@ -1199,9 +1199,12 @@ async def roll_dice(ctx):
 	await ctx.send(Random)
 
 
-@bot.command(name='avatar', help='get avatar_url of member as format ‘webp’, ‘jpeg’, ‘jpg’, ‘png’ or ‘gif’, or ‘gif’ (default is ‘webp’)')
+@bot.command(name='avatar', help='get avatar_url of member as format ‘webp’, ‘jpeg’, ‘jpg’, ‘png’ or ‘gif’ (default is ‘webp’)')
 async def avatar(ctx, Member, Format="webp"):
-	MEMBER = discord.utils.get(ctx.guild.members, name=str(Member))
+	try:
+		MEMBER = discord.utils.get(ctx.guild.members, id=int(member[3:len(member)-1]))
+	else:
+		MEMBER = discord.utils.get(ctx.guild.members, name=str(Member))
 	await ctx.send(str(MEMBER.avatar_url_as(format=Format)))
 
 

@@ -26,17 +26,20 @@ async def Embed(channel, login_name = "whitekeks"):
 	return Embed
 
 
-@bot.event
-async def on_ready():
-	print(f'{bot.user.name} has connected to Discord!')
-	guild = discord.utils.get(bot.guilds, name="Keks")
-	channel = discord.utils.get(guild.channels, name="system")
-	await channel.send(":sob:")
+# @bot.event
+# async def on_ready():
+# 	print(f'{bot.user.name} has connected to Discord!')
+# 	guild = discord.utils.get(bot.guilds, name="Keks")
+# 	channel = discord.utils.get(guild.channels, name="system")
+# 	await channel.send(":sob:")
 
 
-@bot.command
-async def test(ctx):
-	await ctx.send("test")
+@bot.command(name="test")
+async def test(ctx, member):
+	try:
+		print(member[3:len(member)-1])
+	except:
+		print(member)
 
 
 botloop.run_until_complete(bot.start(TOKEN))
