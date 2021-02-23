@@ -625,7 +625,7 @@ async def on_member_join(member):
 	if regist >= 2 and stdrole:
 		with open(file=PATH + f"/stdrole_messages/{guild.id}.txt", mode="r", encoding="utf8") as r:
 			message = r.read()
-		Message = await send_private(member, embed=discord.Embed(description=message))
+		Message = await send_private(member, message)
 		# (_message_id BIGINT, _guild_id BIGINT, _jump_url TEXT, _user_id BIGINT)
 		cursor.execute(f'INSERT INTO sr_messages VALUES ({Message.id},{guild.id},"0",{member.id})')
 		await Message.add_reaction(REGISTER_EMOJI_ACCEPT)
