@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 import asyncio
+import aiohttp
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(f'{PATH}/TOKEN_BOT.env')
@@ -26,13 +27,13 @@ async def Embed(channel, login_name = "whitekeks"):
 	return Embed
 
 
-# @bot.event
-# async def on_ready():
-# 	print(f'{bot.user.name} has connected to Discord!')
-# 	guild = discord.utils.get(bot.guilds, name="Keks")
-# 	channel = discord.utils.get(guild.channels, name="system")
-# 	await channel.send(":sob:")
-
+@bot.event
+async def on_ready():
+	guild = discord.utils.get(bot.guilds, name="Keks")
+	member = discord.utils.get(guild.members, name="e^(iπ) + 1 = 0")
+	async with aiohttp.ClientSession() as session:
+		Webhook = discord.Webhook.from_url("https://discord.com/api/webhooks/813803313107304540/-88iPEMgX8ZxiK2ggLNYS16tT6fIKsch07jRve9uJk3LRaU0kqOrXYJuI4-kgG-SuWfK", adapter=discord.AsyncWebhookAdapter(session))
+		await Webhook.send(content="NO I DONT", username=member.name, avatar_url=member.avatar_url)
 
 @bot.command(name="test")
 async def test(ctx, member):
