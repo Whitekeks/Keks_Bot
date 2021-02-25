@@ -780,9 +780,14 @@ async def twitter_set(ctx, twitter_tag: str, channel: str):
 	guild_id = ctx.guild.id
 	Channel = discord.utils.get(ctx.guild.channels, name=channel)
 	try:
-		channel_id = Channel.id
+		Channel = discord.utils.get(guild.channels, id=int(channel))
 	except:
-		raise commands.UserInputError("Channel-Name is wrong!")
+		try:
+			Channel = discord.utils.get(guild.channels, id=int(channel[2:len(channel)-1]))
+		except:
+			Channel = discord.utils.get(guild.channels, name=channel)
+	if not Channel: commands.UserInputError("Could not find channel")
+	channel_id = Channel.id
 	usertag = "@" + s(twitter_tag)
 
 	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
@@ -819,7 +824,14 @@ async def twitter_delete(ctx, twitter_tag: str, channel: str):
 	global THREADS
 
 	guild_id = ctx.guild.id
-	Channel = discord.utils.get(ctx.guild.channels, name=channel)
+	try:
+		Channel = discord.utils.get(guild.channels, id=int(channel))
+	except:
+		try:
+			Channel = discord.utils.get(guild.channels, id=int(channel[2:len(channel)-1]))
+		except:
+			Channel = discord.utils.get(guild.channels, name=channel)
+	if not Channel: commands.UserInputError("Could not find channel")
 	channel_id = Channel.id
 	usertag = "@" + s(twitter_tag)
 
@@ -1021,10 +1033,13 @@ async def subscription(guild, Channel, login_name, channel_id, mode):
 	global TwitchFeeds
 
 	if channel_id:
-		if type(channel_id)==int:
-			channel = discord.utils.get(guild.channels, id=channel_id)
-		else:
-			channel = discord.utils.get(guild.channels, name=channel_id)
+		try:
+			channel = discord.utils.get(guild.channels, id=int(channel_id))
+		except:
+			try:
+				channel = discord.utils.get(guild.channels, id=int(channel_id[2:len(channel_id)-1]))
+			except:
+				channel = discord.utils.get(guild.channels, name=channel_id)
 		if not channel: channel = Channel
 	else:
 		channel = Channel
@@ -1116,6 +1131,7 @@ async def twitch_show(ctx):
 		Embed.add_field(name=f'<#{Channel.name}>', value=f"[{Name}](https://twitch.tv/{Name})")
 	await ctx.send(embed=Embed)
 
+
 @bot.command(name='show_subs', hidden=True)
 @commands.is_owner()
 async def show_subs(ctx):
@@ -1171,11 +1187,11 @@ async def bip(ctx):
 	await ctx.send('bop')
 
 
-@bot.command(name='test', hidden=True)
-@commands.is_owner()
-async def test(ctx, *args):
-	global RESET_TIME
-	RESET_TIME = timezone.localize( datetime.now() )
+# @bot.command(name='test', hidden=True)
+# @commands.is_owner()
+# async def test(ctx, *args):
+# 	global RESET_TIME
+# 	RESET_TIME = timezone.localize( datetime.now() )
 
 
 @bot.command(name='shutdown', help="shuts down the System")
