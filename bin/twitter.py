@@ -9,16 +9,19 @@ from datetime import datetime
 from discord.ext import commands
 from bin.importantFunctions import s, sleep, STDPREFIX
 
+
 class checkTwitter:
 
 	def __init__(self, **kwargs):
-
+		
+		self.bot = kwargs['bot']
 		self.CREATION_TIME = kwargs['CREATION_TIME']
 		self.usertag = kwargs['usertag']
 		self.feed_id = kwargs['feed_id']
 		self.guild_id = kwargs['guild_id']
 		self.channel_id = kwargs['channel_id']
-		self.Tconn = kwargs['mysql_connector']
+		self.conn = kwargs['mysql_connector']
+		# self.cursor = self.conn.cursor(buffered=True)
 		self.twitter_api = kwargs['twitter_api']
 		self.botloop = kwargs['botloop']
 
@@ -28,7 +31,13 @@ class checkTwitter:
 		self.table = f'twitter_{self.feed_id}'
 
 	def checkTwitter(self):
-		Tconn = self.Tconn
+		# need a standalone Connection because auf heavy duty
+		Tconn = mysql.connector.connect(
+			host=self.conn._host,
+			user=self.conn._user,
+			password=self.conn._password,
+			database=self.conn._database
+		)
 		c = Tconn.cursor(buffered=True)
 
 		while not self.Stop:
@@ -53,8 +62,8 @@ class checkTwitter:
 			notsended = c.fetchall()
 			for i in notsended:
 				if datetime.strptime(i[1], '%a %b %d %X %z %Y') > self.CREATION_TIME:
-					url = self.twitter_api.GetStatusOembed(status_id=i[0])['url']
-					guild = discord.utils.get(bot.guilds, id=self.guild_id)
+					url = twitter_api.GetStatusOembed(status_id=i[0])['url']
+					guild = discord.utils.get(self.bot.guilds, id=self.guild_id)
 					channel = discord.utils.get(guild.channels, id=self.channel_id)
 					if i[2]:
 						url = f'{self.usertag} hat auf Twitter folgendes Retweetet:\n{url}'
@@ -96,6 +105,7 @@ class Twitter(commands.Cog):
 		for feed in Feeds:
 			THREADS.append((
 				checkTwitter(
+					bot=self.bot,
 					usertag=feed[0], 
 					channel_id=feed[1], 
 					CREATION_TIME=feed[2], 
@@ -155,7 +165,6 @@ class Twitter(commands.Cog):
 	@commands.has_guild_permissions(administrator=True)
 	async def twitter_set(self, ctx, twitter_tag: str, channel: str):
 		guild_id = ctx.guild.id
-		Channel = discord.utils.get(ctx.guild.channels, name=channel)
 		try:
 			Channel = discord.utils.get(ctx.guild.channels, id=int(channel))
 		except:
@@ -167,8 +176,8 @@ class Twitter(commands.Cog):
 		channel_id = Channel.id
 		usertag = "@" + s(twitter_tag)
 
-		self.cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
-		if self.cursor.fetchone():
+		self.cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id}')
+		if self.cursor.fetchall():
 			raise commands.UserInputError("Twitter-Feed allready set")
 
 		now = datetime.now()
@@ -176,8 +185,8 @@ class Twitter(commands.Cog):
 		now = timezone.localize(now)
 		creation_time = now.strftime('%a %b %d %X %z %Y')
 
-		self.cursor.execute('SELECT _feed_id FROM twitter ORDER BY _feed_id;')
 		feed_id = 0
+		self.cursor.execute('SELECT _feed_id FROM twitter ORDER BY _feed_id')
 		for i, j in enumerate(self.cursor.fetchall()):
 			if i != j[0]:
 				feed_id = i
@@ -185,12 +194,13 @@ class Twitter(commands.Cog):
 			else:
 				feed_id = i+1
 
-		self.cursor.execute(f'INSERT INTO twitter VALUES ("{usertag}", {channel_id}, "{creation_time}", {guild_id}, {feed_id});')
-		self.cursor.execute(f'CREATE TABLE IF NOT EXISTS twitter_{feed_id} (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;')
+		self.cursor.execute(f'INSERT INTO twitter VALUES ("{usertag}", {channel_id}, "{creation_time}", {guild_id}, {feed_id})')
+		self.cursor.execute(f'CREATE TABLE IF NOT EXISTS twitter_{feed_id} (_rank BIGINT, _id BIGINT, _created_at TEXT, _send BOOL, _retweet BOOL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci')
 		self.conn.commit()
 
 		self.THREADS.append((
 			checkTwitter(
+				bot=self.bot,
 				usertag=usertag, 
 				channel_id=channel_id, 
 				CREATION_TIME=creation_time, 
@@ -221,21 +231,24 @@ class Twitter(commands.Cog):
 		channel_id = Channel.id
 		usertag = "@" + s(twitter_tag)
 
-		self.cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id};')
-		feed = self.cursor.fetchone()
-		if not feed:
+		self.cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel_id} AND _usertag="{usertag}" AND _guild_id={guild_id}')
+		Feed = self.cursor.fetchall()
+		if not Feed:
 			raise commands.UserInputError("News-Feed does not exist")
+		
+		message = ctx.send(embed=discord.Embed(description=f"Deleting Twitter-Feed for {usertag} in #{Channel.name}, this may take some time..."))
 
+		feed = Feed[0]
 		for i, thread in enumerate(self.THREADS):
 			if thread[1] == feed[4]:
 				thread[0].stop()
 				del self.THREADS[i]
 				break
 
-		self.cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]};')
-		self.cursor.execute(f'DROP TABLE twitter_{feed[4]};')
+		self.cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]}')
+		self.cursor.execute(f'DROP TABLE twitter_{feed[4]}')
 		self.conn.commit()
-		await ctx.send(embed=discord.Embed(description=f"Twitter-Feed for {usertag} in #{Channel.name} successfully deleted"))
+		await message.edit(embed=discord.Embed(description=f"Twitter-Feed for {usertag} in #{Channel.name} successfully deleted"))
 
 
 	@commands.command(name='twitter_show', help='shows active twitter-feeds')

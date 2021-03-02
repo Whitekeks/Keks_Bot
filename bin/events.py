@@ -16,15 +16,15 @@ class events(commands.Cog):
 		self.botloop = botloop
 		self.func_member_join = func_member_join
 
-	# @commands.Cog.listener()
-	# async def on_command_error(self, ctx, error):
-	# 	try:
-	# 		self.cursor.execute(f"SELECT _prefix FROM guilds WHERE _id={ctx.guild.id}")
-	# 		prefix = self.cursor.fetchone()[0]
-	# 		await ctx.send(str(error) + f". Try {prefix}help bzw. {prefix}help command for more infos.")
-	# 	except:
-	# 		prefix = STDPREFIX
-	# 		await ctx.send(str(error) + f". Try {prefix}help bzw. {prefix}help command for more infos.")
+	@commands.Cog.listener()
+	async def on_command_error(self, ctx, error):
+		try:
+			self.cursor.execute(f"SELECT _prefix FROM guilds WHERE _id={ctx.guild.id}")
+			prefix = self.cursor.fetchone()[0]
+			await ctx.send(str(error) + f". Try {prefix}help bzw. {prefix}help command for more infos.")
+		except:
+			prefix = STDPREFIX
+			await ctx.send(str(error) + f". Try {prefix}help bzw. {prefix}help command for more infos.")
 
 
 	@commands.Cog.listener()

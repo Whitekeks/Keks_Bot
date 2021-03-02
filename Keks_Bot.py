@@ -157,7 +157,8 @@ bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
 # Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
 # 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
-Games = ["v. 1.3.10", "/help for infos"]
+Games = ["v. 1.3.10", "/help for infos", "/avatar to stalk", "/bip bop", "/dice (im)possible Dices", "/rand not really",\
+		"/rand_user not for Bots", "/set_prefix personal touch"]
 
 print("bot set")
 
@@ -712,7 +713,7 @@ async def on_raw_reaction_add(payload):
 						await send_private(member, embed=discord.Embed(description=f"Willkommen auf dem {guild.name} Discord!"))
 						await message.delete()
 					except:
-						raise commands.UserInputError(f"Registration failed, please contact an admin or the developer ({bot.owner.name})")
+						raise commands.UserInputError(f"Registration failed, please contact an admin or the developer (Whitekeks#3762)")
 				elif payload.emoji.name == REGISTER_EMOJI_DENY:
 					cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
 					await send_private(member, embed=discord.Embed(description="Bedingungen müssen akzeptiert werden!"))

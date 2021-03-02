@@ -4,7 +4,7 @@ import asyncio
 from discord.ext import commands
 from threading import Thread
 import mysql.connector
-from bin.importantFunctions import send_private, CustomError, STDPREFIX
+from bin.importantFunctions import send_private, CustomError, STDPREFIX, s
 
 
 class stdrole(commands.Cog):
@@ -23,8 +23,9 @@ class stdrole(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_guild_remove(self, guild):
-		# delete stdrole_message:
-		os.remove(self.PATH + f"/stdrole_messages/{guild.id}.txt")
+		# delete stdrole_message if exists:
+		try: os.remove(self.PATH + f"/stdrole_messages/{guild.id}.txt")
+		except: None
 
 
 	@commands.Cog.listener()
@@ -122,7 +123,7 @@ class stdrole(commands.Cog):
 							await send_private(member, embed=discord.Embed(description=f"Welcome at the {guild.name} Discord!"))
 							await message.delete()
 						except:
-							raise commands.UserInputError(f"Registration failed, please contact an admin or the developer ({self.bot.owner.name})")
+							raise commands.UserInputError(f"Registration failed, please contact an admin or the developer (Whitekeks#3762)")
 					elif payload.emoji.name == self.REGISTER_EMOJI_DENY:
 						self.cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
 						await send_private(member, embed=discord.Embed(description="Conditions must be accepted!"))
@@ -136,10 +137,12 @@ class stdrole(commands.Cog):
 	async def stdrole(self, ctx, role_id, message_id=None):
 		try:
 			role = discord.utils.get(ctx.guild.roles, id=int(role_id))
-			if not role:
-				raise CustomError()
 		except:
-			role = discord.utils.get(ctx.guild.roles, name=role_id)
+			try:
+				role = discord.utils.get(ctx.guild.roles, id=int(role_id[3:len(role_id)-1])) #Bsp.: <@&775092589447741540>
+			except:
+				role = discord.utils.get(ctx.guild.roles, name=role_id)
+		if not role: raise commands.UserInputError("Role not found")
 
 		if not message_id:
 			try:
@@ -150,9 +153,9 @@ class stdrole(commands.Cog):
 		elif message_id:
 			try:
 				message = await ctx.channel.fetch_message(int(message_id[int(len(message_id)-18):]))
-				message = message.content
 				if not message:
 					raise CustomError()
+				message = message.content
 			except CustomError:
 				raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
 			except:
@@ -171,7 +174,8 @@ class stdrole(commands.Cog):
 		guild = ctx.guild
 		self.cursor.execute(f'UPDATE guilds SET _stdrole = 0, _autodelete = {False} WHERE _id = {guild.id}')
 		self.conn.commit()
-		os.remove(self.PATH + f"/stdrole_messages/{guild.id}.txt")
+		try: os.remove(self.PATH + f"/stdrole_messages/{guild.id}.txt")
+		except: commands.UserInputError("No stdrole was set!")
 		await ctx.send(embed=discord.Embed(description="autoregistration and autodelete successfully turned off"))
 
 

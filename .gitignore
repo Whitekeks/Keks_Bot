@@ -2,3 +2,5 @@ TOKEN_BOT.env
 __pycache__
 .vscode
 test_Bot.py
+stdrole_messages
+err.log

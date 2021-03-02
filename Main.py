@@ -142,9 +142,8 @@ def Prefix(Bot, Message):
 
 bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
-# Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
-# 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
-Games = ["v. 1.4.1", "/help for infos"]
+Games = ["v. 1.4.2", "/help for infos", "/avatar to stalk", "/bip bop", "/dice (im)possible Dices", "/rand not really",\
+		"/rand_user not for Bots", "/set_prefix personal touch"]
 
 print("bot set")
 
@@ -216,6 +215,7 @@ def Preference():
 			i = 0
 		else:
 			i += 1
+	print("Prefence-Thread stopped")
 
 
 def daily_reset():
@@ -227,6 +227,7 @@ def daily_reset():
 		# 	asyncio.run_coroutine_threadsafe(SERVER.HookStream(loginName=login, mode="subscribe"), botloop)
 		try: RESTART(mode="restart")
 		except: None
+	print("daily_reset-Thread stopped")
 
 
 """----------------------- Events ----------------------------"""
@@ -308,7 +309,7 @@ def is_in_guild():
 """------------------------------ Commands --------------------------"""
 
 
-@commands.command(name='register_guild', help='registers Guild. WARNING: deletes Meta-Data if Guild allready exists')
+@bot.command(name='register_guild', help='registers Guild. WARNING: deletes Meta-Data if Guild allready exists')
 @is_guild_owner()
 async def register_guild(ctx):
 	guild = ctx.guild
@@ -317,7 +318,7 @@ async def register_guild(ctx):
 	await guild.owner.send(embed=discord.Embed(description='Guild successfully registered!'))
 
 
-@commands.command(name='register', help='register yourself. WARNING: deletes your Meta-Data')
+@bot.command(name='register', help='register yourself. WARNING: deletes your Meta-Data')
 @is_in_guild()
 async def register(ctx):
 	member = ctx.author

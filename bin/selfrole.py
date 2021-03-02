@@ -2,7 +2,7 @@ import discord
 import asyncio
 from discord.ext import commands
 import mysql.connector
-from bin.importantFunctions import CustomError, STDPREFIX
+from bin.importantFunctions import s, CustomError, STDPREFIX
 
 
 class selfrole(commands.Cog):
@@ -80,10 +80,14 @@ class selfrole(commands.Cog):
 	async def sr_bond(self, ctx, role_id, emoji):
 		guild = ctx.guild
 
-		if type(role_id) == int:
-			role = discord.utils.get(ctx.guild.roles, id=role_id)
-		elif type(role_id) == str:
-			role = discord.utils.get(ctx.guild.roles, name=role_id)
+		try:
+			role = discord.utils.get(ctx.guild.roles, id=int(role_id))
+		except:
+			try:
+				role = discord.utils.get(ctx.guild.roles, id=int(role_id[3:len(role_id)-1])) #Bsp.: <@&775092589447741540>
+			except:
+				role = discord.utils.get(ctx.guild.roles, name=role_id)
+		if not role: raise commands.UserInputError("Role not found")
 
 		self.cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
 		self.cursor.execute(f'INSERT INTO bonds VALUES ({role.id}, "{emoji}", {guild.id})')
@@ -96,10 +100,14 @@ class selfrole(commands.Cog):
 	async def sr_bond_delete(self, ctx, role_id, emoji):
 		guild = ctx.guild
 
-		if type(role_id) == int:
-			role = discord.utils.get(ctx.guild.roles, id=role_id)
-		elif type(role_id) == str:
-			role = discord.utils.get(ctx.guild.roles, name=role_id)
+		try:
+			role = discord.utils.get(ctx.guild.roles, id=int(role_id))
+		except:
+			try:
+				role = discord.utils.get(ctx.guild.roles, id=int(role_id[3:len(role_id)-1])) #Bsp.: <@&775092589447741540>
+			except:
+				role = discord.utils.get(ctx.guild.roles, name=role_id)
+		if not role: raise commands.UserInputError("Role not found")
 
 		self.cursor.execute(f'DELETE FROM bonds WHERE _role_id = {role.id} AND _emoji = "{emoji}" AND _guild_id = {guild.id}')
 		self.conn.commit()

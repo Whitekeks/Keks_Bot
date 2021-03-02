@@ -47,13 +47,14 @@ class Commands(commands.Cog):
 
 
 	@commands.command(name='rand', help=f'get a random number between start and stop')
-	async def rand(self, ctx, start, stop, Type=int):
-		if type(Type)==str:
-			try: Type=eval(Type)
-			except: raise commands.UserInputError("Type not Supported, only int or float")
-		Random = (int(stop)-int(start))*np.random.random()+int(start)
-		if Type==int:
+	async def rand(self, ctx, start, stop, Type="int"):
+		Random = (float(stop)-float(start))*np.random.random()+float(start)
+		if Type==int or Type=="int":
 			Random = int(np.round(Random))
+		elif Type==float or Type=="float":
+			None
+		else:
+			raise commands.UserInputError("Type not Supported, only int or float")
 		await ctx.send(embed=discord.Embed(description=f"**Random between {start} and {stop} as {Type}:**\n\n {Random}"))
 
 
@@ -72,4 +73,4 @@ class Commands(commands.Cog):
 		rand_user = np.random.choice(guild.members)
 		while rand_user.bot:
 			rand_user = np.random.choice(guild.members)
-		await ctx.send(embed=discord.Embed(description=f"<{rand_user.id}>"))
+		await ctx.send(embed=discord.Embed(description=f"<@{rand_user.id}>"))
