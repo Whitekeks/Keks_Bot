@@ -1,19 +1,11 @@
-import os
-import sys
-import psutil
-import logging
-import discord
-import time
-import asyncio
-import pytz
-import twitter
+import os, sys, psutil, logging, discord, time, asyncio, pytz, twitter
+from bin import SocketServer
 from dotenv import load_dotenv
 from discord.ext import commands
 from threading import Thread
 import numpy as np
 from datetime import datetime
 import mysql.connector
-import SocketServer
 
 # get creationtime:
 now = datetime.now()
@@ -165,7 +157,7 @@ bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
 # Games = ["v. 1.2.2","/help for infos","try /bip","!shutdown don't...", "/restart: While True: Bot()",\
 # 		"/set_prefix nobody is Safe", "/register_guild with the boys", "/register without the boys"]
-Games = ["v. 1.3.4", "/help for infos"]
+Games = ["v. 1.3.10", "/help for infos"]
 
 print("bot set")
 
@@ -184,8 +176,7 @@ print("twitter set")
 
 REGISTER_EMOJI_ACCEPT = "👍"
 REGISTER_EMOJI_DENY = "👎"
-BOT_CREATION_TIME = datetime.strptime(getter(
-	"_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y')  # type = datetime
+BOT_CREATION_TIME = datetime.strptime(getter("_creation_time", "bot", "_key", KEY), '%a %b %d %X %z %Y')  # type = datetime
 
 RESET_TIME = timezone.localize( datetime.now() )
 if RESET_TIME.time() < datetime(2021, 1, 1, 6, 55, 0, 0).time():
@@ -220,7 +211,7 @@ def Preference():
 	asyncio.set_event_loop(loop)
 
 	loop.run_until_complete(bot.change_presence(activity=discord.Game("Hello, just started!")))
-	sleep(5)
+	sleep(5, alive)
 
 	Interval = 60
 	i = 0
@@ -228,7 +219,7 @@ def Preference():
 		game = discord.Game(Games[i])
 		loop.run_until_complete(bot.change_presence(activity=game))
 		# time.sleep(Interval)
-		sleep(Interval)
+		sleep(Interval, alive)
 		if i == len(Games)-1:
 			i = 0
 		else:
@@ -488,17 +479,18 @@ async def on_ready():
 			for member_id in Members:
 				Member = discord.utils.get(guild.members, id=member_id[0])
 				if not Member:
-					cursor.execute(f'DELETE FROM members WHERE _id={member_id[0]} AND _guild={guild.id}')
+					await on_member_remove(member)
 		else:
-			cursor.execute(f'DELETE FROM guilds WHERE _id={ID[0]}')
+			await on_guild_remove(guild)
+	conn.commit()
 
 	# check if Guild is registered:
 	for Guild in bot.guilds:
 		cursor.execute(f'SELECT _id FROM guilds WHERE _id={Guild.id}')
 		if not cursor.fetchone():
 			await on_guild_join(Guild)
-
-	conn.commit()
+		else:
+			await on_guild_update(Guild, Guild)
 
 	print(f'{bot.user.name} has connected to Discord!')
 
@@ -558,7 +550,6 @@ async def on_guild_remove(guild):
 	os.remove(PATH + f"/stdrole_messages/{guild.id}.txt")
 
 	# delete Twitch_Feeds and Tables:
-	"twitch_feeds (_guild_id BIGINT, _channel_id BIGINT, _topic_id BIGINT, _message_id BIGINT)"
 	cursor.execute(f'SELECT * FROM twitch_feeds WHERE _guild_id={guild.id}')
 	Feeds = cursor.fetchall()
 	for feed in Feeds:
@@ -592,6 +583,18 @@ async def on_guild_update(before, after):
 async def on_guild_channel_delete(channel):
 	global THREADS
 
+	# delete sr_messages:
+	cursor.execute(f'DELETE FROM sr_messages WHERE _message_id={channel.id} AND _guild_id={guild.id}')
+
+	# delete Twitch_Feeds and Tables:
+	cursor.execute(f'SELECT * FROM twitch_feeds WHERE _channel_id={channel.id} AND _guild_id={channel.guild.id}')
+	Feeds = cursor.fetchall()
+	for feed in Feeds:
+		cursor.execute(f'SELECT _login FROM twitch_topics WHERE _topic_id={feed[2]}')
+		login = cursor.fetchone()
+		await subscription(guild, None, login[0], feed[1], "unsubscribe")
+
+	# delete twitter feeds and tables:
 	cursor.execute(f'SELECT * FROM twitter WHERE _channel_id={channel.id} AND _guild_id={channel.guild.id};')
 	Feeds = cursor.fetchall()
 	for feed in Feeds:
@@ -606,11 +609,13 @@ async def on_guild_channel_delete(channel):
 	conn.commit()
 
 
+# must be entered complete in stdrole.py
 @bot.event
 async def on_member_join(member):
 	if member.bot:
 		return
 
+	# set registration status
 	guild = member.guild
 	stdrole = getter("_stdrole", "guilds", "_id", guild.id)
 	if len(member.roles) == 1 and stdrole:
@@ -622,6 +627,7 @@ async def on_member_join(member):
 	t = (member.id, member.name, member.nick, guild.id, regist, )
 	cursor.execute(f'INSERT INTO members VALUES ({t[0]},"{s(t[1])}","{s(t[2])}",{t[3]},{t[4]})')
 
+	# send Registration-Message
 	if regist >= 2 and stdrole:
 		with open(file=PATH + f"/stdrole_messages/{guild.id}.txt", mode="r", encoding="utf8") as r:
 			message = r.read()
@@ -639,7 +645,9 @@ async def on_member_remove(member):
 		return
 
 	guild = member.guild
+	# Delete members entry
 	cursor.execute(f'DELETE FROM members WHERE _id={member.id} AND _guild={guild.id}')
+	# Delete selfrole created for this Member within stdrole (selfrole ticket for stdrole)
 	cursor.execute(f'DELETE FROM sr_messages WHERE _user_id={member.id} AND _guild_id={guild.id} AND _jump_url="0"')
 	conn.commit()
 
@@ -655,6 +663,7 @@ async def on_member_update(before, after):
 	cursor.execute(f'UPDATE members SET _nick="{s(t[0])}", _name="{s(t[1])}" WHERE _id={after.id} AND _guild={guild.id}')
 	conn.commit()
 
+	# autodeletion of stdrole:
 	if len(after.roles) > 1:
 		Guest = discord.utils.get(after.roles, id=getter("_stdrole", "guilds", "_id", guild.id))
 
@@ -679,6 +688,7 @@ async def on_raw_reaction_add(payload):
 	if payload.user_id == bot.user.id:
 		return
 
+	# stdrole:
 	if not payload.guild_id:
 		cursor.execute(f'SELECT _guild_id FROM sr_messages WHERE _jump_url="0" AND _user_id={payload.user_id} AND _message_id={payload.message_id}')
 		guild_id = cursor.fetchone()
@@ -709,6 +719,7 @@ async def on_raw_reaction_add(payload):
 					await message.delete()
 					await member.kick()
 				conn.commit()
+	# selfrole:
 	elif payload.guild_id:
 		# check if message id is in sr_messages:
 		cursor.execute(f'SELECT _message_id FROM sr_messages WHERE _guild_id = {payload.guild_id} AND _message_id = {payload.message_id}')
@@ -780,12 +791,12 @@ async def twitter_set(ctx, twitter_tag: str, channel: str):
 	guild_id = ctx.guild.id
 	Channel = discord.utils.get(ctx.guild.channels, name=channel)
 	try:
-		Channel = discord.utils.get(guild.channels, id=int(channel))
+		Channel = discord.utils.get(ctx.guild.channels, id=int(channel))
 	except:
 		try:
-			Channel = discord.utils.get(guild.channels, id=int(channel[2:len(channel)-1]))
+			Channel = discord.utils.get(ctx.guild.channels, id=int(channel[2:len(channel)-1]))
 		except:
-			Channel = discord.utils.get(guild.channels, name=channel)
+			Channel = discord.utils.get(ctx.guild.channels, name=channel)
 	if not Channel: commands.UserInputError("Could not find channel")
 	channel_id = Channel.id
 	usertag = "@" + s(twitter_tag)
@@ -825,12 +836,12 @@ async def twitter_delete(ctx, twitter_tag: str, channel: str):
 
 	guild_id = ctx.guild.id
 	try:
-		Channel = discord.utils.get(guild.channels, id=int(channel))
+		Channel = discord.utils.get(ctx.guild.channels, id=int(channel))
 	except:
 		try:
-			Channel = discord.utils.get(guild.channels, id=int(channel[2:len(channel)-1]))
+			Channel = discord.utils.get(ctx.guild.channels, id=int(channel[2:len(channel)-1]))
 		except:
-			Channel = discord.utils.get(guild.channels, name=channel)
+			Channel = discord.utils.get(ctx.guild.channels, name=channel)
 	if not Channel: commands.UserInputError("Could not find channel")
 	channel_id = Channel.id
 	usertag = "@" + s(twitter_tag)
@@ -1221,6 +1232,9 @@ async def roll_dice(ctx, sites=6):
 
 @bot.command(name='rand', help=f'get a random number between start and stop')
 async def rand(ctx, start, stop, Type=int):
+	if type(Type)==str:
+		try: Type=eval(Type)
+		except: raise commands.UserInputError("Type not Supported, only int or float")
 	Random = (int(stop)-int(start))*np.random.random()+int(start)
 	if Type==int:
 		Random = int(np.round(Random))
@@ -1247,7 +1261,6 @@ async def raffle(ctx):
 
 def StopServer():
 	# unsubscribe for every existing Topics
-	import time
 	print("start Server shutdown!")
 	for login in TwitchFeeds:
 		asyncio.run_coroutine_threadsafe(SERVER.HookStream(loginName=login, mode="unsubscribe"), botloop)
