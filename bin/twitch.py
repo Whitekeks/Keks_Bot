@@ -84,6 +84,11 @@ class Twitch(commands.Cog):
 			await self.subscription(guild, None, login[0], feed[1], "unsubscribe")
 		self.conn.commit()
 
+	@commands.group(help="Create a Twitch subscription in a given Channel, use sub, unsub and show")
+	async def twitch(self, ctx):
+		if ctx.invoked_subcommand is None:
+			raise commands.UserInputError('Invalid subcommand command passed')
+
 	async def subscription(self, guild, Channel, login_name, channel_id, mode):
 		if channel_id:
 			try:
@@ -155,21 +160,21 @@ class Twitch(commands.Cog):
 			self.conn.commit()
 			return (None, Embed)
 
-	@commands.command(name='twitch_sub', help=f'creates Twitch-Topic subscription (leave Channel empty if calling from same channel), \
-		usage: {STDPREFIX}twitch_sub login_name login_name Channel[optional]')
+	@twitch.command(name='sub', help=f'creates Twitch-Topic subscription (leave Channel empty if calling from same channel), \
+		usage: {STDPREFIX}twitch sub login_name login_name Channel[optional]')
 	@commands.has_guild_permissions(administrator=True)
 	async def twitch_sub(self, ctx, login_name : str, Channel = None):
 		content, embed = await self.subscription(ctx.guild, ctx.channel, login_name, Channel, "subscribe")
 		await ctx.send(content=content, embed=embed)
 
-	@commands.command(name='twitch_unsub', help=f'unsub from existing Twitch-Topic (leave Channel empty if calling from same channel), \
-		usage: {STDPREFIX}twitch_unsub login_name Channel[optional]')
+	@twitch.command(name='unsub', help=f'unsub from existing Twitch-Topic (leave Channel empty if calling from same channel), \
+		usage: {STDPREFIX}twitch unsub login_name Channel[optional]')
 	@commands.has_guild_permissions(administrator=True)
 	async def twitch_unsub(self, ctx, login_name : str, Channel = None):
 		content, embed = await self.subscription(ctx.guild, ctx.channel, login_name, Channel, "unsubscribe")
 		await ctx.send(content=content, embed=embed)
 
-	@commands.command(name='twitch_show', help=f'shows active twitch_feeds for this Channel')
+	@twitch.command(name='show', help=f'shows active twitch_feeds for this Channel, usage: {STDPREFIX}twitch show')
 	@commands.has_guild_permissions(administrator=True)
 	async def twitch_show(self, ctx):
 		self.cursor.execute(f'SELECT _channel_id, _topic_id FROM twitch_feeds WHERE _guild_id={ctx.guild.id}')

@@ -160,8 +160,13 @@ class Twitter(commands.Cog):
 			self.cursor.execute(f'DELETE FROM twitter WHERE _feed_id={feed[4]};')
 			self.cursor.execute(f'DROP TABLE twitter_{feed[4]};')
 		self.conn.commit()
-	
-	@commands.command(name='twitter_set', help=f'set channel for twitter_news twitter_tag without "@" usage: {STDPREFIX}twitter_set twitter_tag(without "@") channel')
+
+	@commands.group(help="Creates a Twitter Feed in a given Channel, use set, delete, and show")
+	async def twitter(self, ctx):
+		if ctx.invoked_subcommand is None:
+			raise commands.UserInputError('Invalid subcommand command passed')
+
+	@twitter.command(name='set', help=f'set channel for twitter_news twitter tag without "@" usage: {STDPREFIX}twitter set twitter_tag(without "@") channel')
 	@commands.has_guild_permissions(administrator=True)
 	async def twitter_set(self, ctx, twitter_tag: str, channel: str):
 		guild_id = ctx.guild.id
@@ -215,8 +220,7 @@ class Twitter(commands.Cog):
 
 		await Channel.send(embed=discord.Embed(description=f"Twitter-Feed for {usertag} successfully set in #{Channel.name}"))
 
-
-	@commands.command(name='twitter_delete', help=f'deletes news-feed, usage: {STDPREFIX}twitter_delete twitter_tag(without "@") channel')
+	@twitter.command(name='delete', help=f'deletes news-feed, usage: {STDPREFIX}twitter delete twitter_tag(without "@") channel')
 	@commands.has_guild_permissions(administrator=True)
 	async def twitter_delete(self, ctx, twitter_tag: str, channel: str):
 		guild_id = ctx.guild.id
@@ -250,8 +254,7 @@ class Twitter(commands.Cog):
 		self.conn.commit()
 		await message.edit(embed=discord.Embed(description=f"Twitter-Feed for {usertag} in #{Channel.name} successfully deleted"))
 
-
-	@commands.command(name='twitter_show', help='shows active twitter-feeds')
+	@twitter.command(name='show', help=f'shows active twitter-feeds, usage: {STDPREFIX}twitter show')
 	@commands.has_guild_permissions(administrator=True)
 	async def twitter_show(self, ctx):
 		self.cursor.execute(f'SELECT _usertag, _channel_id, _creation_time FROM twitter WHERE _guild_id={ctx.guild.id};')

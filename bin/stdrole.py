@@ -7,7 +7,7 @@ import mysql.connector
 from bin.importantFunctions import send_private, CustomError, STDPREFIX, s
 
 
-class stdrole(commands.Cog):
+class standardrole(commands.Cog):
 
 	def __init__(self, bot, prefix, mysql_connector, botloop, PATH, REGISTER_EMOJI_ACCEPT, REGISTER_EMOJI_DENY):
 		global STDPREFIX
@@ -132,9 +132,17 @@ class stdrole(commands.Cog):
 					self.conn.commit()
 
 	
-	@commands.command(name='stdrole', help=f'toggles autoregistration usage: {STDPREFIX}stdrole role(name or id) Message(as String, ID(same Channel) or txt-File-Attachement)')
+	@commands.group(help=f"Sets protokoll for new Users on this Guild, new User must accept the provided Message to recieve the given Role "+\
+		"otherwise the User will be kicked. Use set, delete and show. With {STDPREFIX}autodelete True the given standardrole will be removed, "+\
+		"when recieving additional roles (default: False).")
+	async def stdrole(self, ctx):
+		if ctx.invoked_subcommand is None:
+			raise commands.UserInputError('Invalid subcommand command passed')
+
+
+	@stdrole.command(name='set', help=f'toggles autoregistration, usage: {STDPREFIX}stdrole set role(name or id) Message(as String, ID(same Channel) or txt-File-Attachement)')
 	@commands.has_guild_permissions(administrator=True)
-	async def stdrole(self, ctx, role_id, message_id=None):
+	async def stdrole_set(self, ctx, role_id, message_id=None):
 		try:
 			role = discord.utils.get(ctx.guild.roles, id=int(role_id))
 		except:
@@ -168,7 +176,7 @@ class stdrole(commands.Cog):
 		await ctx.send(embed=discord.Embed(description="standart-role set"))
 
 
-	@commands.command(name='stdrole_delete', help=f'turns off autoregistration and autodelete')
+	@stdrole.command(name='delete', help=f'turns off autoregistration and autodelete, usage: {STDPREFIX}stdrole delete')
 	@commands.has_guild_permissions(administrator=True)
 	async def stdrole_delete(self, ctx):
 		guild = ctx.guild
@@ -187,7 +195,7 @@ class stdrole(commands.Cog):
 		await ctx.send(embed=discord.Embed(description=f"autodelete set to {con}"))
 
 
-	@commands.command(name='stdrole_show', help='shows stdrole and welcome-message')
+	@stdrole.command(name='show', help=f'shows stdrole and welcome-message, usage {STDPREFIX}stdrole show')
 	@commands.has_guild_permissions(administrator=True)
 	async def stdrole_show(self, ctx):
 		self.cursor.execute(f'SELECT _stdrole FROM guilds WHERE _id = {ctx.guild.id}')

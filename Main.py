@@ -142,8 +142,9 @@ def Prefix(Bot, Message):
 
 bot = commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())
 botloop = asyncio.get_event_loop()
-Games = ["v. 1.4.2", "/help for infos", "/avatar to stalk", "/bip bop", "/dice (im)possible Dices", "/rand not really",\
-		"/rand_user not for Bots", "/set_prefix personal touch"]
+Games = ["v. 1.4.4", "/help for infos", "/avatar to stalk", "/bip bop", "/dice (im)possible Dices", "/rand not really",\
+		"/rand_user not for Bots", "/set_prefix personal touch", "/random_comic geeky humor", "/twitter like a bird",\
+		"/twitch watch players play", "/bond role pairing", "/message for bonds", "/stdrole welcome protocol"]
 
 print("bot set")
 
@@ -326,9 +327,9 @@ async def register(ctx):
 	await on_member_join(member)
 
 
-@bot.command(name='shutdown', help="shuts down the System")
+@bot.command(name='stop', help="stops the System")
 @commands.is_owner()
-async def shutdown(ctx):
+async def stop(ctx):
 	await ctx.send('Shutting down... Bye!')
 	SHUTDOWN()
 
@@ -427,7 +428,7 @@ Selfrole = selfrole.selfrole(
 )
 
 # set stdrole:
-Stdrole = stdrole.stdrole(
+Stdrole = stdrole.standardrole(
 	bot=bot,
 	prefix=STDPREFIX,
 	mysql_connector=conn,

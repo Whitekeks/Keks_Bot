@@ -75,9 +75,15 @@ class selfrole(commands.Cog):
 		self.conn.commit()
 
 
-	@commands.command(name='sr_bond', help=f'binds emoji to role, usage: {STDPREFIX}sr_bond role(name or id) emoji')
+	@commands.group(help="sets bonds to use them in selfrole: message. use set, delete and show")
+	async def bond(self, ctx):
+		if ctx.invoked_subcommand is None:
+			raise commands.UserInputError('Invalid subcommand command passed')
+
+
+	@bond.command(name='set', help=f'binds emoji to role, usage: {STDPREFIX}bond set role(name or id) emoji')
 	@commands.has_guild_permissions(administrator=True)
-	async def sr_bond(self, ctx, role_id, emoji):
+	async def sr_bond_set(self, ctx, role_id, emoji):
 		guild = ctx.guild
 
 		try:
@@ -95,7 +101,7 @@ class selfrole(commands.Cog):
 		await ctx.send(embed=discord.Embed(description=f"bond {role.name} -> {emoji} successfully created"))
 
 
-	@commands.command(name='sr_bond_delete', help=f'deletes bond of emoji to role, usage: {STDPREFIX}sr_bond_delete role(name or id) emoji')
+	@bond.command(name='delete', help=f'deletes bond of emoji to role, usage: {STDPREFIX}bond delete role(name or id) emoji')
 	@commands.has_guild_permissions(administrator=True)
 	async def sr_bond_delete(self, ctx, role_id, emoji):
 		guild = ctx.guild
@@ -114,7 +120,7 @@ class selfrole(commands.Cog):
 		await ctx.send(embed=discord.Embed(description=f"bond {role.name} -> {emoji} successfully deleted"))
 
 
-	@commands.command(name='sr_bond_show', help=f'shows bonds of emojis to roles')
+	@bond.command(name='show', help=f'shows bonds of emojis to roles, usage: {STDPREFIX}bond show')
 	@commands.has_guild_permissions(administrator=True)
 	async def sr_bond_show(self, ctx):
 		# check if role in bond still exists:
@@ -132,9 +138,15 @@ class selfrole(commands.Cog):
 		await ctx.send(embed=Embed)
 
 
-	@commands.command(name='sr_message', help=f'creates message for self-role or binds existing message, usage: {STDPREFIX}sr_message Message(as String or ID(same Channel)) emojis(*args, ...)')
+	@commands.group(help="creates or binds message to selfrole-protocol with given bonds, use set, delete and show. Alternativly you can remove the Message manually.")
+	async def message(self, ctx):
+		if ctx.invoked_subcommand is None:
+			raise commands.UserInputError('Invalid subcommand command passed')
+
+
+	@message.command(name='set', help=f'creates message for self-role or binds existing message, usage: {STDPREFIX}message set Message(as String or ID(same Channel)) emojis(*args, ...)')
 	@commands.has_guild_permissions(administrator=True)
-	async def sr_message(self, ctx, message_id=None, *args):
+	async def sr_message_set(self, ctx, message_id=None, *args):
 		try:
 			message = await ctx.channel.fetch_message(int(message_id[int(len(message_id)-18):]))
 			if not message:
@@ -156,8 +168,18 @@ class selfrole(commands.Cog):
 			except:
 				None
 
+	
+	@message.command(name='delete', help=f'deletes message (selfrole ot not), you can delete the Message manually, usage: {STDPREFIX}message delete Message(as ID(same Channel))')
+	@commands.has_guild_permissions(administrator=True)
+	async def sr_message_delete(self, ctx, message_id):
+		message = await ctx.channel.fetch_message(int(message_id[int(len(message_id)-18):]))
+		if not message:
+			raise commands.UserInputError("Could not find Message, make sure the Command is in the same Channel as the Message")
+		await message.delete()
+		await ctx.send(embed=discord.Embed(description="Message deleted successfully!"))
 
-	@commands.command(name='sr_message_show', help=f'shows created messages for self-role')
+	
+	@message.command(name='show', help=f'shows created messages for self-role, usage: {STDPREFIX}message show')
 	@commands.has_guild_permissions(administrator=True)
 	async def sr_message_show(self, ctx):
 		Embed = discord.Embed(title="Active Self-Role Messages:")

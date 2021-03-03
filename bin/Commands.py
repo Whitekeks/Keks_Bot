@@ -76,6 +76,7 @@ class Commands(commands.Cog):
 			rand_user = np.random.choice(guild.members)
 		await ctx.send(embed=discord.Embed(description=f"<@{rand_user.id}>"))
 
+
 	@commands.command(name='random_comic', help='get a random Comic!')
 	async def random_comic(self, ctx):
 		url = "https://c.xkcd.com/random/comic/"
