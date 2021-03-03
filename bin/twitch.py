@@ -175,11 +175,11 @@ class Twitch(commands.Cog):
 		self.cursor.execute(f'SELECT _channel_id, _topic_id FROM twitch_feeds WHERE _guild_id={ctx.guild.id}')
 		Feeds = self.cursor.fetchall()
 		Embed = discord.Embed(title="Twitch Feeds")
-		for feed in Feeds:
+		for i, feed in enumerate(Feeds):
 			Channel = discord.utils.get(ctx.guild.channels, id=feed[0])
 			self.cursor.execute(f'SELECT _login FROM twitch_topics WHERE _topic_id={feed[1]}')
 			Name = self.cursor.fetchone()[0]
-			Embed.add_field(name=f'<#{Channel.name}>', value=f"[{Name}](https://twitch.tv/{Name})")
+			Embed.add_field(name=f'{i}', value=f"<#{Channel.id}>\n[{Name}](https://twitch.tv/{Name})")
 		await ctx.send(embed=Embed)
 
 	@commands.command(name='show_subs', hidden=True)

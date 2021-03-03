@@ -1,5 +1,6 @@
 import discord
 import asyncio
+import aiohttp
 from discord.ext import commands
 import mysql.connector
 import numpy as np
@@ -74,3 +75,16 @@ class Commands(commands.Cog):
 		while rand_user.bot:
 			rand_user = np.random.choice(guild.members)
 		await ctx.send(embed=discord.Embed(description=f"<@{rand_user.id}>"))
+
+	@commands.command(name='random_comic', help='get a random Comic!')
+	async def random_comic(self, ctx):
+		url = "https://c.xkcd.com/random/comic/"
+		async with aiohttp.ClientSession() as session:
+			async with session.get(url=url) as resp:
+				html = await resp.text()
+
+		string = "Image URL (for hotlinking/embedding):"
+		erg = html.find(string)
+		html = html[erg + len(string) + 1:]
+		html = html.split("\n")
+		await ctx.send(content=f"A random Comic from xkcd:\n{html[0]}")
